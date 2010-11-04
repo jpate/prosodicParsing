@@ -4,18 +4,13 @@
    This software is provided under the terms of the Common Public License,
    version 1.0, as published by http://www.opensource.org.  For further
    information, see the file `LICENSE' included with this distribution. */
-//package cc.mallet.grmm.examples;
-package ProsodicParsing;
+package cc.mallet.grmm.examples;
 
 
 import java.util.Random;
 
 import cc.mallet.grmm.inference.Inferencer;
-import cc.mallet.grmm.inference.Sampler;
-import cc.mallet.grmm.inference.SamplingInferencer;
 import cc.mallet.grmm.inference.JunctionTreeInferencer;
-import cc.mallet.grmm.inference.GibbsSampler;
-import cc.mallet.grmm.inference.ExactSampler;
 import cc.mallet.grmm.types.*;
 
 /**
@@ -24,7 +19,7 @@ import cc.mallet.grmm.types.*;
  * @author <A HREF="mailto:casutton@cs.umass.edu>casutton@cs.umass.edu</A>
  * @version $Id: SimpleGraphExample.java,v 1.1 2007/10/22 21:38:02 mccallum Exp $
  */
-public class GraphExample {
+public class SimpleGraphExample {
 
   public static void main (String[] args)
   {
@@ -52,13 +47,9 @@ public class GraphExample {
       mdl.addFactor (v1, v2, ptlarr);
     }
 
-    System.out.println( mdl );
-
     // STEP 2: Compute marginals
 
     Inferencer inf = new JunctionTreeInferencer ();
-    // Sampler someGibbsSampler = new GibbsSampler();
-    // Inferencer inf = new SamplingInferencer( someGibbsSampler , 10);
     inf.computeMarginals (mdl);
 
     // STEP 3: Collect the results
@@ -67,15 +58,13 @@ public class GraphExample {
     for (int varnum = 0; varnum < allVars.length; varnum++) {
       Variable var = allVars[varnum];
       Factor ptl = inf.lookupMarginal (var);
-      System.out.println( ptl );
-      // for (AssignmentIterator it = ptl.assignmentIterator (); it.hasNext ();) {
-      //   int outcome = it.indexOfCurrentAssn ();
-      //   System.out.println (var+"  "+outcome+"   "+ptl.value (it));
-      // }
+      for (AssignmentIterator it = ptl.assignmentIterator (); it.hasNext ();) {
+        int outcome = it.indexOfCurrentAssn ();
+        System.out.println (var+"  "+outcome+"   "+ptl.value (it));
+      }
       System.out.println ();
     }
 
   }
 
 }
-

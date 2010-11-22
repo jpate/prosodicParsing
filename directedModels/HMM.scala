@@ -40,6 +40,10 @@ abstract class ProbabilityDistribution {
       ).toSeq: _*
     )
   }
+
+  def setPT( newPT:HashMap[String,Double] ) {
+    pt = newPT
+  }
 }
 
 abstract class ConditionalProbabilityDistribution {
@@ -91,10 +95,15 @@ abstract class ConditionalProbabilityDistribution {
         ).toSeq: _*
       )
   }
+
+  def setCPT( newCPT:HashMap[String,HashMap[String,Double]] ) {
+    cpt = newCPT
+  }
 }
 
 class HMM( numHiddenStates:Int, observationTypes:HashSet[String] ) {
   val stateNames = (1 to numHiddenStates) map ( "Q" + _ )
+
   object TransitionMatrix extends ConditionalProbabilityDistribution {
     // For now we'll initialize to a uniform transition matrix and define a
     // randomize method for people to have a random initialization whenever they
@@ -125,12 +134,22 @@ class HMM( numHiddenStates:Int, observationTypes:HashSet[String] ) {
       )
   }
 
-  object InitialStateProbabilities extends ProbabilityDistribution {
-    var pt = HashMap[String,Double] (
-      stateNames.map( thisStateName =>
-        thisStateName -> 1D/stateNames.size
-      ).toSeq: _*
-    )
+  /*
+    object InitialStateProbabilities extends ProbabilityDistribution {
+      var pt = HashMap[String,Double] (
+        stateNames.map( thisStateName =>
+          thisStateName -> 1D/stateNames.size
+        ).toSeq: _*
+      )
+    }
+  */
+
+  def setTransitionMatrix( newTransitions:HashMap[String,HashMap[String,Double]] ) {
+    TransitionMatrix.setCPT( newTransitions )
+  }
+
+  def setEmissionMatrix( newEmissions:HashMap[String,HashMap[String,Double]] ) {
+    EmissionMatrix.setCPT( newEmissions )
   }
 
   def randomize(n:Int) {
@@ -141,43 +160,41 @@ class HMM( numHiddenStates:Int, observationTypes:HashSet[String] ) {
   val labels = new LabelAlphabet()// observationTypes.toArray )
   observationTypes.foreach( labels.lookupIndex( _, true ) )
   //val hmm = new FactorGraph()
-  val hmm = new DirectedModel()
+  var hmm = new DirectedModel()
   //var observedAssignment = new LabelSequence( labels )
-  var observedAssignment = new Assignment()
+  //var observedAssignment = new Assignment()
+  var hiddenStates:Array[Variable] = Array()
+  var observations:Array[Variable] = Array()
+  var inferenceGraph = new FactorGraph()
+
   def buildHMM( tokens:Array[String] ) {
-    // TODO: CHECK TO MAKE SURE hmm SHOULD BE CLEARED. MAYBE WE CAN SAVE SOME
+    // TODO: CHECK TO MAKE SURE hmm SHOULD BE CLEARED? MAYBE WE CAN SAVE SOME
     // WORK BY JUST MODIFYING AN EXISTING FACTOR GRAPH IF THINGS ARE SLOW?
     hmm.clear();
 
-    val hiddenStates = Array.tabulate(tokens.size)( _ => new Variable( numHiddenStates ) )
-    val observations =
-      Array.tabulate(tokens.size)( _ => new Variable( labels ) )
-      //Array.tabulate(tokens.size)( _ => new Variable( observationTypes.size ) )
-
-    ( 0 to tokens.size-1 ) foreach( i =>
-      hiddenStates(i).setLabel("hidden."+i)
-    )
+    hiddenStates = Array.tabulate(tokens.size)( _ => new Variable( numHiddenStates ) )
+    observations = Array.tabulate(tokens.size)( _ => new Variable( labels ) )
 
     ( 0 to tokens.size-1 ) foreach{ i =>
+      hiddenStates(i).setLabel("hidden."+i)
       observations(i).setLabel("observed."+i)
-      observedAssignment.addRow(
-        new Assignment(
-          Array( observations(i) ),
-          Array( labels.lookupIndex( tokens(i) ) )
-        )
-      )
     }
 
 
+    val observedAssignment = new Assignment(
+      observations,
+      tokens.map( labels.lookupIndex(_) )
+    )
+
+
+    // state transitions
     ( 1 to (tokens.size-1) ) foreach{ i =>
       hmm.addFactor(
         new CPT(
           new TableFactor(
             Array(
-              hiddenStates(i-1),
-              hiddenStates(i)
-            ),
-            TransitionMatrix.toArray
+              hiddenStates(i-1), hiddenStates(i)),
+              TransitionMatrix.toArray
           ),
           hiddenStates(i)
         )
@@ -186,7 +203,13 @@ class HMM( numHiddenStates:Int, observationTypes:HashSet[String] ) {
 
     //print( EmissionMatrix.toArray.size )
     // println( EmissionMatrix )
-    (0 to tokens.size-1 ) foreach ( i =>
+    ( 0 to tokens.size-1 ) foreach { i =>
+      val thisObservation = new Assignment(
+        observations(i) ,
+        labels.lookupIndex( tokens(i) )
+      )
+
+
       hmm.addFactor(
         new CPT(
           new TableFactor(
@@ -199,8 +222,45 @@ class HMM( numHiddenStates:Int, observationTypes:HashSet[String] ) {
           observations(i)
         )
       )
-    )
+    }
 
+      // hmm.dump();
+    //println("<<")
+    //println( observedAssignment )
+    //observedAssignment.dump()
+    //println(">>")
+
+    //val test = hmm.slice( observedAssignment )
+    //hmm = hmm.slice( observedAssignment )
+    //println( "Before slice: " )
+    //inferenceGraph = hmm
+    //seeMarginals()
+    //println( "Performing slice..." )
+    //println( observedAssignment.containsVar( hiddenStates(1) ) )
+    //val blankAssn = new Assignment()
+    //println( blankAssn.containsVar( hiddenStates(0) ) )
+    //println( "\n\n\n\n\n\n\n")
+
+    //println( hmm.slice( observedAssignment ) )
+    //hmm = hmm.slice( observedAssignment )
+    //val factors = hmm.slice( observedAssignment )
+    inferenceGraph = new FactorGraph( Array( hmm.slice( observedAssignment ) ) )
+
+    // println("===")
+    // println( new DirectedModel( new FactorGraph( Array( factors ) ) ) )
+    // println("===")
+
+    //hmm = new DirectedModel()
+
+    //factors.factors().foreach(
+    //  hmm.addFactor( _ )
+    //)
+
+    //hmm = new DirectedModel( factors )
+
+    //println( "done" )
+    //println( "After slice: " )
+    //seeMarginals()
 
 
     //hmm.dump();
@@ -216,11 +276,16 @@ class HMM( numHiddenStates:Int, observationTypes:HashSet[String] ) {
 
   def seeMarginals() {
     val inferencer = new JunctionTreeInferencer()
-    inferencer.computeMarginals( hmm )
-    
-    observedAssignment.dump()
+    inferencer.computeMarginals( inferenceGraph )
+
+    hiddenStates foreach ( someHiddenState =>
+      println( inferencer.lookupMarginal( someHiddenState ).dumpToString() )
+    )
+
+    //hmm.dump()
+    //observedAssignment.dump()
     //println( observedAssignment.asTable )
-    inferencer.dumpLogJoint( observedAssignment )
+    //inferencer.dumpLogJoint( observedAssignment )
     //println( "marginals")
     //hmm foreach ( hiddenVar =>
     //)

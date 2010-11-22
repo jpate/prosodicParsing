@@ -8,7 +8,7 @@ object testHMM {
   def main( args:Array[String] ) {
     val t = new HMM( 4 , HashSet("whoa","wait","what","?") )
 
-    println( t.TransitionMatrix("Q1")("Q2") )
+    println( t.TransitionMatrix("Q_1")("Q_2") )
     //t.randomize(0)
 
 
@@ -16,7 +16,7 @@ object testHMM {
     //val newEmissionsMatrix = new HashMap[String,HashMap[String,Double]](
     val newEmissionsMatrix = HashMap(
       Pair(
-        "Q1",
+        "Q_0",
         HashMap(
           "whoa" -> 0.5D,
           "wait" -> 0.5D,
@@ -25,7 +25,7 @@ object testHMM {
         )
       ),
       Pair(
-        "Q2",
+        "Q_1",
         HashMap(
           "whoa" -> 0D,
           "wait" -> 0.5D,
@@ -34,7 +34,7 @@ object testHMM {
         )
       ),
       Pair(
-        "Q3",
+        "Q_2",
         HashMap(
           "whoa" -> 0D,
           "wait" -> 0D,
@@ -43,7 +43,7 @@ object testHMM {
         )
       ),
       Pair(
-        "Q4",
+        "Q_3",
         HashMap(
           "whoa" -> 0.5D,
           "wait" -> 0D,
@@ -55,8 +55,9 @@ object testHMM {
 
     t.setEmissionMatrix( newEmissionsMatrix )
 
-    t.buildHMM( Array("whoa","wait","what","?")  )
-    t.seeMarginals();
+    //t.buildHMM( Array("whoa","wait","what","?")  )
+    t.emStep(Array("whoa","wait","what","?"))
+    //t.seeMarginals();
     //t.seeMarginals()
     //t.buildHMM( Array("whoa","wait","what","?") )
     //t.seeMarginals()

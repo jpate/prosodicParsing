@@ -9,7 +9,7 @@ object testHMM {
     val t = new HMM( 4 , HashSet("whoa","wait","what","?") )
 
     println( t.TransitionMatrix("Q_1")("Q_2") )
-    //t.randomize(0)
+    t.randomize(0)
 
 
     
@@ -56,7 +56,9 @@ object testHMM {
     t.setEmissionMatrix( newEmissionsMatrix )
 
     //t.buildHMM( Array("whoa","wait","what","?")  )
-    t.emStep(Array("whoa","wait","what","?"))
+    t.emStep(
+      Array("whoa","wait","what","?","what","wait","wait","what","?")
+    )
     //t.seeMarginals();
     //t.seeMarginals()
     //t.buildHMM( Array("whoa","wait","what","?") )

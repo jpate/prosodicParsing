@@ -4,7 +4,14 @@ package prosodicParsing.HMMs
 import collection.immutable.HashMap
 import prosodicParsing.types._
 
-class PlainHMM extends AbstractHMMActor[HiddenState,Observation,PlainHMMParameters] {
+/*
+import java.util.concurrent._
+import scalaz.concurrent._
+import scalaz.concurrent.Promise
+import scalaz.concurrent.Promise._
+*/
+
+class PlainHMM {//extends AbstractHMMActor[HiddenState,Observation,PlainHMMParameters] {
 
   var initialStateProbs = new HashMap[HiddenState, Double] {
     override def default( q:HiddenState ) = 0D
@@ -23,6 +30,7 @@ class PlainHMM extends AbstractHMMActor[HiddenState,Observation,PlainHMMParamete
         override def default( to:Observation ) = 0D
       }
   }
+  
 
 
   def setInitialStateProbs( newInitialProbs:HashMap[HiddenState,Double] ) {
@@ -37,17 +45,13 @@ class PlainHMM extends AbstractHMMActor[HiddenState,Observation,PlainHMMParamete
     emissions = newObservations
   }
 
+  /*
   def setParameters( newParams:PlainHMMParameters ) {
-    val PlainHMMParameters(
-      initialProbs,
-      transitionProbs,
-      emissionProbs
-    ) = newParams
-
-    setInitialStateProbs( initialProbs )
-    setTransitions( transitionProbs )
-    setEmissions( emissionProbs )
+    setInitialStateProbs( newParams.initialProbs )
+    setTransitions( newParams.transitionProbs )
+    setEmissions( newParams.emissionProbs )
   }
+  */
 
   def numHiddenStates = transitions.keySet.size
 
@@ -390,6 +394,14 @@ class PlainHMM extends AbstractHMMActor[HiddenState,Observation,PlainHMMParamete
       scaledExpectedEmissionsCount
     )
   }
+
+  /*
+  def concurrentExpectations( str:List[Observation] ) = {
+    implicit val pool = Executors.newFixedThreadPool(2)
+    implicit val s = Strategy.Executor
+    promise( computeExpectations( str ) )
+  }
+  */
 
 
   override def toString = 

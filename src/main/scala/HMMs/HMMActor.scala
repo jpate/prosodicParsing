@@ -4,6 +4,7 @@ import prosodicParsing.types._
 import scala.actors._
 import scala.actors.Actor
 
+/*
 abstract class AbstractHMMActor[Q<:AbstractHiddenState,O<:AbstractObservation,P<:AbstractHMMParameters]
   extends AbstractHMM[Q,O,P] with Actor{
   def act() {
@@ -19,4 +20,5 @@ abstract class AbstractHMMActor[Q<:AbstractHiddenState,O<:AbstractObservation,P<
 }
 
 case object Stop
+*/
 

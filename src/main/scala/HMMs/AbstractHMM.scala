@@ -15,12 +15,26 @@ abstract class AbstractHMM[Q<:AbstractHiddenState,O<:AbstractObservation,P<:Abst
   def computeExpectations( s:List[O] ):Expectation
 
   def setParameters( newParams:P ):Unit
+
 }
 
 abstract class AbstractHMMParameters
-case class PlainHMMParameters(
-  initialProbs: HashMap[HiddenState,Double],
-  transitionProbs: HashMap[HiddenState,HashMap[HiddenState,Double]],
-  emissionProbs: HashMap[HiddenState,HashMap[Observation,Double]]
-) extends AbstractHMMParameters
+
+/*
+class PlainHMMParameters extends AbstractHMMParameters {
+
+  def setInitialStateProbs( newInitialProbs:HashMap[HiddenState,Double] ) {
+    initialStateProbs = newInitialProbs
+  }
+
+  def setTransitions( newTransitions:HashMap[HiddenState,HashMap[HiddenState,Double]] ) {
+    transitions = newTransitions
+  }
+
+  def setEmissions( newObservations:HashMap[HiddenState,HashMap[Observation,Double]] ) {
+    emissions = newObservations
+  }
+
+}
+*/
 

@@ -18,7 +18,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
   hiddenStateTypes.foreach( hiddenStateAlphabet.lookupIndex( _, true ) )
 
   val numHiddenStates = hiddenStateTypes.size
-  //val hiddenStateTypes = (0 to (numHiddenStates-1)) map ( "Q_" + _ )
 
   object TransitionMatrix extends ConditionalProbabilityDistribution[HiddenState,HiddenState] {
     // For now we'll initialize to a uniform transition matrix and define a
@@ -470,43 +469,18 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     inferencer.computeMarginals( hmm )
 
     def logSpaceMultiplication( logSpaceArray:Array[Double], factor:Factor ) =
-      ( logSpaceArray zip factor.asTable().toLogValueArray ).map{ case (a, b) =>
-        a + b
-      }
+      ( logSpaceArray zip factor.asTable().toLogValueArray ).map{ case (a, b) => a + b }
 
-    // inferencer.lookupJunctionTree().clusterPotentialsArray().foldLeft(Array.fill(hiddenStateTypes.size)(0D))( logSpaceMultiplication
-    inferencer.lookupJunctionTree().sepsetPotentialsArray().foldLeft(Array.fill(hiddenStateTypes.size)(0D))( logSpaceMultiplication
-    ).map{ math.exp(_) }.sum
+    // inferencer.lookupJunctionTree().sepsetPotentialsArray().foldLeft(
+    //   Array.fill(hiddenStateTypes.size)(0D)
+    // )( logSpaceMultiplication ).map{ math.exp(_) }.sum
+
+    inferencer.lookupJunctionTree().clusterPotentialsArray().foldLeft(
+      Array.fill(hiddenStateTypes.size)(0D)
+    )( logSpaceMultiplication ).map{ math.exp(_) }.sum
   }
 
   def totalProbability( allObservations:List[Observation] ):Double = {
-
-        /*
-        def forwardPass_aux(
-          computed:List[HashMap[HiddenState,Double]],
-          remaining: List[Observation]
-        ):List[HashMap[HiddenState,Double]] =
-          if( remaining == Nil )
-            computed
-          else
-            forwardPass_aux(
-              computed ++
-              List(
-                HashMap(
-                  hiddenStateTypes.map{ to =>
-                    to -> (
-                      computed.last.keySet.map{ from =>
-                        computed.last( from ) *
-                        TransitionMatrix( from )( to )
-                      }.sum *
-                      EmissionMatrix( to )( remaining.head )
-                    )
-                  }.toSeq:_*
-                )
-              ),
-              remaining.tail
-            )
-        */
 
     def forwardPass( allObservations:List[Observation] ) = {
       var lastAlphas =

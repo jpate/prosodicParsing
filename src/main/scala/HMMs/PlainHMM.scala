@@ -8,10 +8,12 @@ import cc.mallet.grmm.inference.JunctionTreeInferencer
 import scala.collection.immutable.{HashMap,HashSet}
 import scala.collection.mutable.{HashMap => MHashMap}
 
-class PlainHMM( hiddenStateTypes:Set[HiddenState], observationTypes:Set[Observation] ) {
+class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Observation] ) {
+  val observationTypes = observationTypesSet.toList.sortWith( (a,b) => a < b )
   val observationAlphabet = new LabelAlphabet()
   observationTypes.foreach( observationAlphabet.lookupIndex( _, true ) )
 
+  val hiddenStateTypes = hiddenStateTypesSet.toList.sortWith( (a,b) => a < b )
   val hiddenStateAlphabet = new LabelAlphabet()
   hiddenStateTypes.foreach( hiddenStateAlphabet.lookupIndex( _, true ) )
 
@@ -113,7 +115,7 @@ class PlainHMM( hiddenStateTypes:Set[HiddenState], observationTypes:Set[Observat
     // emissions
     ( 0 to tokens.size-1 ) foreach { i =>
       val thisObservation = new Assignment(
-        observations(i) ,
+        observations(i),
         observationAlphabet.lookupIndex( tokens(i) )
       )
 
@@ -380,8 +382,8 @@ class PlainHMM( hiddenStateTypes:Set[HiddenState], observationTypes:Set[Observat
     setInitialProbs( stateProbs )
 
     //totalProb
-    easyPeasyTotalProbability( sequence )
-    // totalProbability( sequence )
+    // easyPeasyTotalProbability( sequence )
+    totalProbability( sequence )
   }
 
 

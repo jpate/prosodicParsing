@@ -130,14 +130,78 @@ class PlainHMM( hiddenStateTypes:Set[HiddenState], observationTypes:Set[Observat
     }
   }
 
+        // def inferencingHMM( tokens:List[Observation] ) = {
+        //   // clear hmm this way; hmm.clear() breaks something.
+        //   hmm = new DirectedModel()
+
+
+        //   hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( hiddenStateAlphabet ) )
+        //   observations = Array.tabulate(tokens.size)( _ => new Variable( observationAlphabet ) )
+
+
+        //   ( 0 to tokens.size-1 ) foreach{ i =>
+        //     hiddenVariables(i).setLabel("hidden."+i)
+        //     observations(i).setLabel("observed."+i)
+        //   }
+
+        //   val observationSequence = new Assignment(
+        //     observations, tokens.map( w => observationAlphabet.lookupIndex( w ) ).toArray
+        //   )
+
+        //   /*
+        //   println( "tokens: " + tokens.mkString( "", " ", "") )
+        //   println( "hiddenVariables: " + hiddenVariables.mkString( "", " ", "") )
+        //   println( "observations: " + observations.mkString( "", " ", "") )
+        //   */
+
+
+        //   // state transitions
+        //   ( 1 to (tokens.size-1) ) foreach{ i =>
+        //     hmm.addFactor(
+        //       new CPT(
+        //         new TableFactor(
+        //           Array( hiddenVariables(i-1), hiddenVariables(i) ),
+        //             TransitionMatrix.toArray
+        //         ),
+        //         hiddenVariables(i)
+        //       )
+        //     )
+        //   }
+
+        //   // emissions
+        //   ( 0 to tokens.size-1 ) foreach { i =>
+        //     val thisObservation = new Assignment(
+        //       observations(i) ,
+        //       observationAlphabet.lookupIndex( tokens(i) )
+        //     )
+
+        //     hmm.addFactor(
+        //       new CPT(
+        //         new TableFactor(
+        //           Array( hiddenVariables(i), observations(i) ),
+        //           EmissionMatrix.toArray
+        //         ),
+        //         observations(i) //,
+        //         //thisObservation
+        //       )
+        //     )
+        //   }
+
+        //   hmm.slice( observationSequence )
+        // }
+
+
   def computePartialCounts( sequence:List[Observation] ) = {
     buildHMM( sequence )
+    //val forInference = inferencingHMM( sequence )
 
     val inferencer = new JunctionTreeInferencer()
     inferencer.computeMarginals( hmm )
 
-    // val totalProb = inferencer.lookupJunctionTree().clusterPotentialsArray().reduceLeft( (b,a) => a.multiply(b) ).sum
+    // val totalProb = inferencer.lookupJunctionTree().clusterPotentialsArray().reduceLeft( (b,a) =>
+    // a.multiply(b) ).sum
 
+    /*
     def logSpaceMultiplication( a:Array[Double], b:Array[Double] ) = (a zip b ).map{ case( l, r ) =>
       l + r
     }
@@ -147,6 +211,7 @@ class PlainHMM( hiddenStateTypes:Set[HiddenState], observationTypes:Set[Observat
     val totalProb =
     inferencer.lookupJunctionTree().clusterPotentialsArray().map{_.asTable().toLogValueArray}.reduceLeft(
     logSpaceMultiplication).map{ math.exp(_) }.sum
+    */
     
     val stateCounts = MHashMap(
       hiddenStateTypes.map{ _ -> 0D }.toSeq:_*
@@ -161,7 +226,7 @@ class PlainHMM( hiddenStateTypes:Set[HiddenState], observationTypes:Set[Observat
         )
       }.toSeq:_*
     )
-    
+
           /*
           ( 0 to (hiddenVariables.size-1) ) foreach { hiddenVarIndex =>
             val hiddenVar = hiddenVariables( hiddenVarIndex )
@@ -217,9 +282,8 @@ class PlainHMM( hiddenStateTypes:Set[HiddenState], observationTypes:Set[Observat
      
     }
 
-
     PartialCounts(
-      totalProb,
+      //totalProb,
       HashMap(
         stateCounts.keySet.map{ q =>
           q -> stateCounts(q)
@@ -248,7 +312,7 @@ class PlainHMM( hiddenStateTypes:Set[HiddenState], observationTypes:Set[Observat
 
   def reestimate( sequence:List[Observation] ) = {
     val PartialCounts(
-      totalProb,
+      //totalProb,
       stateCounts,
       transitionCounts,
       emissionCounts
@@ -315,8 +379,9 @@ class PlainHMM( hiddenStateTypes:Set[HiddenState], observationTypes:Set[Observat
     setTransitionMatrix( transitionProbs )
     setInitialProbs( stateProbs )
 
-    totalProb
-    //easyPeasyTotalProbability( sequence )
+    //totalProb
+    easyPeasyTotalProbability( sequence )
+    // totalProbability( sequence )
   }
 
 
@@ -406,66 +471,67 @@ class PlainHMM( hiddenStateTypes:Set[HiddenState], observationTypes:Set[Observat
       ( logSpaceArray zip factor.asTable().toLogValueArray ).map{ case (a, b) =>
         a + b
       }
-    inferencer.lookupJunctionTree().clusterPotentialsArray().foldLeft(Array.fill(hiddenStateTypes.size)(0D))( logSpaceMultiplication
+
+    // inferencer.lookupJunctionTree().clusterPotentialsArray().foldLeft(Array.fill(hiddenStateTypes.size)(0D))( logSpaceMultiplication
+    inferencer.lookupJunctionTree().sepsetPotentialsArray().foldLeft(Array.fill(hiddenStateTypes.size)(0D))( logSpaceMultiplication
     ).map{ math.exp(_) }.sum
   }
 
-      // I think this is wrong. Use the other total probability function.
-      // def totalProbability( allObservations:List[Observation] ):Double = {
+  def totalProbability( allObservations:List[Observation] ):Double = {
 
-      //       /*
-      //       def forwardPass_aux(
-      //         computed:List[HashMap[HiddenState,Double]],
-      //         remaining: List[Observation]
-      //       ):List[HashMap[HiddenState,Double]] =
-      //         if( remaining == Nil )
-      //           computed
-      //         else
-      //           forwardPass_aux(
-      //             computed ++
-      //             List(
-      //               HashMap(
-      //                 hiddenStateTypes.map{ to =>
-      //                   to -> (
-      //                     computed.last.keySet.map{ from =>
-      //                       computed.last( from ) *
-      //                       TransitionMatrix( from )( to )
-      //                     }.sum *
-      //                     EmissionMatrix( to )( remaining.head )
-      //                   )
-      //                 }.toSeq:_*
-      //               )
-      //             ),
-      //             remaining.tail
-      //           )
-      //       */
+        /*
+        def forwardPass_aux(
+          computed:List[HashMap[HiddenState,Double]],
+          remaining: List[Observation]
+        ):List[HashMap[HiddenState,Double]] =
+          if( remaining == Nil )
+            computed
+          else
+            forwardPass_aux(
+              computed ++
+              List(
+                HashMap(
+                  hiddenStateTypes.map{ to =>
+                    to -> (
+                      computed.last.keySet.map{ from =>
+                        computed.last( from ) *
+                        TransitionMatrix( from )( to )
+                      }.sum *
+                      EmissionMatrix( to )( remaining.head )
+                    )
+                  }.toSeq:_*
+                )
+              ),
+              remaining.tail
+            )
+        */
 
-      //   def forwardPass( allObservations:List[Observation] ) = {
-      //     var lastAlphas =
-      //       HashMap(
-      //         hiddenStateTypes.map{ q =>
-      //            q -> InitialStateProbabilities( q ) * EmissionMatrix(q)(allObservations(0))
-      //         }.toSeq:_*
-      //       )
+    def forwardPass( allObservations:List[Observation] ) = {
+      var lastAlphas =
+        HashMap(
+          hiddenStateTypes.map{ q =>
+             q -> InitialStateProbabilities( q ) * EmissionMatrix(q)(allObservations(0))
+          }.toSeq:_*
+        )
 
-      //     (allObservations.tail).foreach{ obs =>
-      //       // println( "---===---===:    " + obs )
-      //       lastAlphas = HashMap(
-      //         hiddenStateTypes.map{ qTo =>
-      //           qTo -> {
-      //             hiddenStateTypes.map{ qFrom =>
-      //               TransitionMatrix(qFrom)(qTo) * lastAlphas(qFrom)
-      //             }.sum
-      //           } *
-      //           EmissionMatrix(qTo)(obs)
-      //         }.toSeq:_*
-      //       )
-      //     }
-      //     lastAlphas
-      //   }
+      (allObservations.tail).foreach{ obs =>
+        // println( "---===---===:    " + obs )
+        lastAlphas = HashMap(
+          hiddenStateTypes.map{ qTo =>
+            qTo -> {
+              hiddenStateTypes.map{ qFrom =>
+                TransitionMatrix(qFrom)(qTo) * lastAlphas(qFrom)
+              }.sum
+            } *
+            EmissionMatrix(qTo)(obs)
+          }.toSeq:_*
+        )
+      }
+      lastAlphas
+    }
 
-      //   forwardPass( allObservations ).values.sum
-      // }
+    forwardPass( allObservations ).values.sum
+  }
 
 
   def seeMarginals() {

@@ -8,7 +8,7 @@ import cc.mallet.grmm.inference.JunctionTreeInferencer
 import scala.collection.immutable.{HashMap,HashSet}
 import scala.collection.mutable.{HashMap => MHashMap}
 
-class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Observation] ) {
+class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[ObservedState] ) {
   val observationTypes = observationTypesSet.toList.sortWith( (a,b) => a < b )
   val observationAlphabet = new LabelAlphabet()
   observationTypes.foreach( observationAlphabet.lookupIndex( _, true ) )
@@ -35,7 +35,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       )
   }
 
-  object EmissionMatrix extends ConditionalProbabilityDistribution[HiddenState,Observation] {
+  object EmissionMatrix extends ConditionalProbabilityDistribution[HiddenState,ObservedState] {
     var cpt = HashMap(
       hiddenStateTypes.map( fromStateName =>
           fromStateName -> (
@@ -61,7 +61,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     TransitionMatrix.setCPT( newTransitions )
   }
 
-  def setEmissionMatrix( newEmissions:HashMap[HiddenState,HashMap[Observation,Double]] ) {
+  def setEmissionMatrix( newEmissions:HashMap[HiddenState,HashMap[ObservedState,Double]] ) {
     EmissionMatrix.setCPT( newEmissions )
   }
 
@@ -72,12 +72,13 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
   def randomize(n:Int) {
     TransitionMatrix.randomize(n)
     EmissionMatrix.randomize(n)
+    InitialStateProbabilities.randomize(n)
   }
 
   var hmm = new DirectedModel()
   var hiddenVariables:Array[Variable] = Array()
   var observations:Array[Variable] = Array()
-  def buildHMM( tokens:List[Observation] ) {
+  def buildHMM( tokens:List[ObservedState] ) {
     // clear hmm this way; hmm.clear() breaks something.
     hmm = new DirectedModel()
 
@@ -192,7 +193,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         // }
 
 
-  def computePartialCounts( sequence:List[Observation] ) = {
+  def computePartialCounts( sequence:List[ObservedState] ) = {
     buildHMM( sequence )
     //val forInference = inferencingHMM( sequence )
 
@@ -311,7 +312,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     )
   }
 
-  def reestimate( sequence:List[Observation] ) = {
+  def reestimate( sequence:List[ObservedState] ) = {
     val PartialCounts(
       //totalProb,
       stateCounts,
@@ -386,14 +387,14 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
   }
 
 
-  def viterbi( s: List[Observation] ) = {
+  def viterbi( s: List[ObservedState] ) = {
     def argmax( h:HashMap[HiddenState,Double] ):HiddenState =
       h.keySet.reduceLeft{ (p, q) => if( h(p) > h(q) ) p else q }
 
     def viterbi_aux(
       backtrace:List[HashMap[HiddenState,HiddenState]], // psi
       previousState:HashMap[HiddenState,Double], // delta
-      remaining:List[Observation]
+      remaining:List[ObservedState]
     ):List[HashMap[HiddenState,HiddenState]] = {
       if( remaining == Nil )
         backtrace :+
@@ -463,7 +464,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     )
   }
 
-  def easyPeasyTotalProbability( s:List[Observation] ) = {
+  def easyPeasyTotalProbability( s:List[ObservedState] ) = {
     buildHMM( s )
     val inferencer = new JunctionTreeInferencer()
     inferencer.computeMarginals( hmm )
@@ -480,9 +481,9 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     )( logSpaceMultiplication ).map{ math.exp(_) }.sum
   }
 
-  def totalProbability( allObservations:List[Observation] ):Double = {
+  def totalProbability( allObservations:List[ObservedState] ):Double = {
 
-    def forwardPass( allObservations:List[Observation] ) = {
+    def forwardPass( allObservations:List[ObservedState] ) = {
       var lastAlphas =
         HashMap(
           hiddenStateTypes.map{ q =>
@@ -521,11 +522,11 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
   override def toString =
     "  == HMM Parameters == \n" +
-    "InitialProbabilities" +
+    "\nInitialProbabilities" +
     InitialStateProbabilities +
-    "Transitions:" +
+    "\nTransitions:" +
     TransitionMatrix +
-    "Emissions" +
+    "\nEmissions" +
     EmissionMatrix
 }
 

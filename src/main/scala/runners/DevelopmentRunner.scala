@@ -4,6 +4,7 @@ import ProsodicParsing.types._
 
 object DevelopmentRunner {
   def main( args:Array[String]) {
+    import scala.math.log
 
     val dataPath = args(0)
 
@@ -33,22 +34,25 @@ object DevelopmentRunner {
 
     println( h )
 
-    var lastProb = 0D
+    println( trainingData( 0 ) )
+    var lastProb = log( h.generalProbability( trainingData(0) ) )
+    println( "    " +lastProb )
     var lastGenProb = 0D
     for( n <- 0 to 100 ) {
       println( n + ":" )
-      val newProb = h.reestimate( trainingData(0) )
+      val newProb = log( h.reestimate( trainingData(0) ) )
       println( "    " +newProb + " (" + ((newProb - lastProb)/lastProb) + ")" )
       // val ezpzProb = h.easyPeasyTotalProbability( trainingData(0) )
       // println( "    " + ezpzProb )
-      val generalProb = h.generalProbability( trainingData(0) )
-      println( "    " + generalProb + " (" + (( generalProb - lastGenProb )/lastGenProb) + ")")
+      // val generalProb = h.generalProbability( trainingData(0) )
+      // println( "    " + generalProb + " (" + (( generalProb - lastGenProb )/lastGenProb) + ")")
 
-      //println( h )
+      println( h )
 
       lastProb = newProb
-      lastGenProb = generalProb
+      // lastGenProb = generalProb
     }
+    println( h )
 
     println( "\n\n\n\n\n=======\n\n\n\n" )
 

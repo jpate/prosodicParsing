@@ -94,10 +94,6 @@ abstract class ProbabilityDistribution[T<:Label] {
     }
 
   def normalize {
-    // val maxes = HashMap(
-    //   pt.keySet.map( parent => parent -> (cpt(parent)).values.sum ).toSeq:_*
-    // )
-
     val max = pt.values.sum
     pt = HashMap(
       pt.keySet.map{ parent =>
@@ -119,7 +115,8 @@ abstract class ProbabilityDistribution[T<:Label] {
 
     normalize
   }
-  
+
+  def toArray = pt.keySet.toList.sortWith( (a,b) => a < b ).map( pt(_) ).toArray
 
   def apply( k:T ) = pt( k )
 

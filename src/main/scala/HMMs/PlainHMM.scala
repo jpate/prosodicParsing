@@ -99,8 +99,18 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     */
 
 
+    // initial states:
+    hmm.addFactor(
+      new CPT(
+        new TableFactor(
+          Array( hiddenVariables(0), hiddenVariables(1) ),
+          (InitialStateProbabilities * TransitionMatrix ).toArray
+        ),
+        hiddenVariables(1)
+      )
+    )
     // state transitions
-    ( 1 to (tokens.size-1) ) foreach{ i =>
+    ( 2 to (tokens.size-1) ) foreach{ i =>
       hmm.addFactor(
         new CPT(
           new TableFactor(
@@ -469,6 +479,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     val inferencer = new JunctionTreeInferencer()
     inferencer.computeMarginals( hmm )
 
+    /*
     def logSpaceMultiplication( logSpaceArray:Array[Double], factor:Factor ) =
       ( logSpaceArray zip factor.asTable().toLogValueArray ).map{ case (a, b) => a + b }
 
@@ -479,6 +490,87 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     inferencer.lookupJunctionTree().clusterPotentialsArray().foldLeft(
       Array.fill(hiddenStateTypes.size)(0D)
     )( logSpaceMultiplication ).map{ math.exp(_) }.sum
+    */
+
+
+    inferencer.lookupJunctionTree().clusterPotentialsArray().map(
+      _.sum
+    ).reduceLeft( _*_ )
+  }
+
+  def generalProbability( tokens:List[ObservedState] ) = {
+    // clear hmm this way; hmm.clear() breaks something.
+    hmm = new DirectedModel()
+
+
+    hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( hiddenStateAlphabet ) )
+    observations = Array.tabulate(tokens.size)( _ => new Variable( observationAlphabet ) )
+
+
+    ( 0 to tokens.size-1 ) foreach{ i =>
+      hiddenVariables(i).setLabel("hidden."+i)
+      observations(i).setLabel("observed."+i)
+    }
+
+    /*
+    println( "tokens: " + tokens.mkString( "", " ", "") )
+    println( "hiddenVariables: " + hiddenVariables.mkString( "", " ", "") )
+    println( "observations: " + observations.mkString( "", " ", "") )
+    */
+
+
+    // initial states:
+    hmm.addFactor(
+      new CPT(
+        new TableFactor(
+          Array( hiddenVariables(0), hiddenVariables(1) ),
+          (InitialStateProbabilities * TransitionMatrix ).toArray
+        ),
+        hiddenVariables(1)
+      )
+    )
+    // state transitions
+    ( 2 to (tokens.size-1) ) foreach{ i =>
+      hmm.addFactor(
+        new CPT(
+          new TableFactor(
+            Array( hiddenVariables(i-1), hiddenVariables(i) ),
+              TransitionMatrix.toArray
+          ),
+          hiddenVariables(i)
+        )
+      )
+    }
+
+    // emissions
+    ( 0 to tokens.size-1 ) foreach { i =>
+      val thisObservation = new Assignment(
+        observations(i),
+        observationAlphabet.lookupIndex( tokens(i) )
+      )
+
+      hmm.addFactor(
+        new CPT(
+          new TableFactor(
+            Array( hiddenVariables(i), observations(i) ),
+            EmissionMatrix.toArray
+          ),
+          observations(i)
+        )
+      )
+    }
+
+    val inferencer = new JunctionTreeInferencer()
+    
+
+    val observationSequence = new Assignment(
+      observations, tokens.map( w => observationAlphabet.lookupIndex( w ) ).toArray
+    )
+
+    hmm.slice(observationSequence).sum
+
+    // println( inferencer.lookupJunctionTree.dumpToString() )
+    // inferencer.lookupMarginal( new HashVarSet( observations ) )
   }
 
   def totalProbability( allObservations:List[ObservedState] ):Double = {

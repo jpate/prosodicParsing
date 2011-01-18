@@ -33,8 +33,43 @@ object DevelopmentRunner {
 
     println( h )
 
-    
+    var lastProb = 0D
+    var lastGenProb = 0D
+    for( n <- 0 to 100 ) {
+      println( n + ":" )
+      val newProb = h.reestimate( trainingData(0) )
+      println( "    " +newProb + " (" + ((newProb - lastProb)/lastProb) + ")" )
+      // val ezpzProb = h.easyPeasyTotalProbability( trainingData(0) )
+      // println( "    " + ezpzProb )
+      val generalProb = h.generalProbability( trainingData(0) )
+      println( "    " + generalProb + " (" + (( generalProb - lastGenProb )/lastGenProb) + ")")
 
+      //println( h )
+
+      lastProb = newProb
+      lastGenProb = generalProb
+    }
+
+    println( "\n\n\n\n\n=======\n\n\n\n" )
+
+    val nextObservationSet = Set(
+      "wait",
+      "whoa",
+      "what",
+      "?"
+    ).map( ObservedState( _ ) )
+
+    val nextHiddenStates = Set(
+      "Q_0",
+      "Q_1"
+    ).map(HiddenState(_))
+
+    val vShortSentence = List( "wait", "what" ).map( ObservedState( _ ) )
+
+    val h2 = new PlainHMM( nextHiddenStates, nextObservationSet )
+
+    println( h2.totalProbability( vShortSentence ) )
+    println( h2.generalProbability( vShortSentence ) )
   }
 }
 

@@ -63,6 +63,8 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] {
     }.toArray
   }
 
+  def keySet = cpt.keySet
+
   override def toString = cpt.keySet.toList.sortWith( (a,b) => a < b ).map{ parent =>
     cpt(parent).keySet.toList.sortWith( (a,b) => a < b ).map{ ch =>
       parent + " --> " +ch + ":\t" + cpt(parent)(ch)
@@ -77,6 +79,19 @@ abstract class ProbabilityDistribution[T<:Label] {
   def setPT( updatedPT: HashMap[T,Double] ) {
     pt = updatedPT
   }
+
+  def *[U<:Label]( otherCPT: ConditionalProbabilityDistribution[T,U] ) =
+    new ConditionalProbabilityDistribution[T,U] {
+      var cpt = HashMap(
+        otherCPT.keySet.map{ parent =>
+          parent -> HashMap (
+            otherCPT(parent).keySet.map{ child =>
+              child -> ( pt( parent ) * otherCPT( parent )( child ) )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      )
+    }
 
   def normalize {
     // val maxes = HashMap(

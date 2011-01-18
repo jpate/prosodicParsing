@@ -391,9 +391,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     setTransitionMatrix( transitionProbs )
     setInitialProbs( stateProbs )
 
-    //totalProb
-    // easyPeasyTotalProbability( sequence )
-    totalProbability( sequence )
+    generalProbability( sequence )
   }
 
 
@@ -474,30 +472,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     )
   }
 
-  def easyPeasyTotalProbability( s:List[ObservedState] ) = {
-    buildHMM( s )
-    val inferencer = new JunctionTreeInferencer()
-    inferencer.computeMarginals( hmm )
-
-    /*
-    def logSpaceMultiplication( logSpaceArray:Array[Double], factor:Factor ) =
-      ( logSpaceArray zip factor.asTable().toLogValueArray ).map{ case (a, b) => a + b }
-
-    // inferencer.lookupJunctionTree().sepsetPotentialsArray().foldLeft(
-    //   Array.fill(hiddenStateTypes.size)(0D)
-    // )( logSpaceMultiplication ).map{ math.exp(_) }.sum
-
-    inferencer.lookupJunctionTree().clusterPotentialsArray().foldLeft(
-      Array.fill(hiddenStateTypes.size)(0D)
-    )( logSpaceMultiplication ).map{ math.exp(_) }.sum
-    */
-
-
-    inferencer.lookupJunctionTree().clusterPotentialsArray().map(
-      _.sum
-    ).reduceLeft( _*_ )
-  }
-
   def generalProbability( tokens:List[ObservedState] ) = {
     // clear hmm this way; hmm.clear() breaks something.
     hmm = new DirectedModel()
@@ -512,11 +486,11 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       observations(i).setLabel("observed."+i)
     }
 
-    /*
-    println( "tokens: " + tokens.mkString( "", " ", "") )
-    println( "hiddenVariables: " + hiddenVariables.mkString( "", " ", "") )
-    println( "observations: " + observations.mkString( "", " ", "") )
-    */
+          /*
+          println( "tokens: " + tokens.mkString( "", " ", "") )
+          println( "hiddenVariables: " + hiddenVariables.mkString( "", " ", "") )
+          println( "observations: " + observations.mkString( "", " ", "") )
+          */
 
 
     // initial states:
@@ -568,13 +542,9 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     )
 
     hmm.slice(observationSequence).sum
-
-    // println( inferencer.lookupJunctionTree.dumpToString() )
-    // inferencer.lookupMarginal( new HashVarSet( observations ) )
   }
 
   def totalProbability( allObservations:List[ObservedState] ):Double = {
-
     def forwardPass( allObservations:List[ObservedState] ) = {
       var lastAlphas =
         HashMap(

@@ -18,7 +18,10 @@ object DevelopmentRunner {
       _.split(" ").toList.map( ObservedState( _ ) )
     )
 
-    val observationTypes = Set( ObservedState("#####") ) ++ Set(
+    val uttStart = ObservedState("UTTSTART")
+    val uttEnd = ObservedState("UTTEND")
+
+    val observationTypes = Set( uttStart, uttEnd  ) ++ Set(
       trainingData.flatten
     ).flatten
 
@@ -36,29 +39,36 @@ object DevelopmentRunner {
 
     println( trainingData( 0 ) )
     //var lastProb = log( h.generalProbability( trainingData(0) ) ) + log( h.generalProbability(
-    var lastProb = trainingData.map{ s => log( h.generalProbability( s ) ) }.sum
+    //var lastProb = trainingData.map{ s => log( h.generalProbability( s ) ) }.sum
     //trainingData(1)))
-    println( "    " +lastProb )
-    var lastGenProb = 0D
-    for( n <- 0 to 100 ) {
-      print( n + ":  " )
+    //println( "    " +lastProb )
+    println( "BEGINNING EM" )
+    var lastProb = 1D
+    var deltaLogProb = 1D
+    while( math.abs( deltaLogProb ) > 0.00001 ) {
+      //print( n + ":  " )
       val newProb = h.reestimateSingle(
         //List( trainingData(0),trainingData(1) ).flatMap( ObservedState("#####")::_ )
-        trainingData.flatMap( ObservedState("#####")::_ )
+        trainingData.flatMap{ List( uttStart ) ++ _ ++ List( uttEnd ) }
       )
-      println( "    " +newProb + " (" + ((newProb - lastProb)/lastProb) + ")" )
+      deltaLogProb = ((newProb - lastProb)/lastProb)
+      println( "    " +newProb + " (" +  deltaLogProb + ")" )
       // val ezpzProb = h.easyPeasyTotalProbability( trainingData(0) )
       // println( "    " + ezpzProb )
       // val generalProb = h.generalProbability( trainingData(0) )
       // println( "    " + generalProb + " (" + (( generalProb - lastGenProb )/lastGenProb) + ")")
 
-      println( h )
+      // println( h )
 
       lastProb = newProb
       // lastGenProb = generalProb
     }
+
+    println( "EM RESULTS IN: " )
+
     println( h )
 
+    /*
     println( "\n\n\n\n\n=======\n\n\n\n" )
 
     val nextObservationSet = Set(
@@ -79,6 +89,7 @@ object DevelopmentRunner {
 
     println( h2.totalProbability( vShortSentence ) )
     println( h2.generalProbability( vShortSentence ) )
+    */
   }
 }
 

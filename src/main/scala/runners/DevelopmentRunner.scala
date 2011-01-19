@@ -39,7 +39,7 @@ object DevelopmentRunner {
     println( "    " +lastProb )
     var lastGenProb = 0D
     for( n <- 0 to 100 ) {
-      println( n + ":" )
+      print( n + ":  " )
       val newProb = log( h.reestimate( trainingData(0) ) )
       println( "    " +newProb + " (" + ((newProb - lastProb)/lastProb) + ")" )
       // val ezpzProb = h.easyPeasyTotalProbability( trainingData(0) )

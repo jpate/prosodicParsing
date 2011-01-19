@@ -313,7 +313,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
   }
 
   def reestimate( corpus:List[List[ObservedState]] ) = {
-
     val corpusInitialStateCounts = new MHashMap[HiddenState,Double]{
       override def default( q:HiddenState ) = 0D
     }

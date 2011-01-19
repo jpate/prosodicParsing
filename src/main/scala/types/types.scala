@@ -126,6 +126,7 @@ abstract class ProbabilityDistribution[T<:Label] {
 }
 
 case class PartialCounts(
+  stringProb: Double,
   stateCounts: HashMap[HiddenState,Double],
   transitionCounts: HashMap[HiddenState,HashMap[HiddenState,Double]],
   emissionCounts: HashMap[HiddenState,HashMap[ObservedState,Double]]

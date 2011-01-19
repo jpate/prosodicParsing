@@ -205,26 +205,9 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
   def computePartialCounts( sequence:List[ObservedState] ) = {
     buildHMM( sequence )
-    //val forInference = inferencingHMM( sequence )
 
     val inferencer = new JunctionTreeInferencer()
     inferencer.computeMarginals( hmm )
-
-    // val totalProb = inferencer.lookupJunctionTree().clusterPotentialsArray().reduceLeft( (b,a) =>
-    // a.multiply(b) ).sum
-
-    /*
-    def logSpaceMultiplication( a:Array[Double], b:Array[Double] ) = (a zip b ).map{ case( l, r ) =>
-      l + r
-    }
-      // ( logSpaceArray zip factor.asTable().toLogValueArray ).map{ case (a, b) =>
-      //   a + b
-      // }
-    val totalProb =
-    inferencer.lookupJunctionTree().clusterPotentialsArray().map{_.asTable().toLogValueArray}.reduceLeft(
-    logSpaceMultiplication).map{ math.exp(_) }.sum
-    */
-    
 
     val initialStateCounts = MHashMap(
       hiddenStateTypes.map{ _ -> 0D }.toSeq:_*
@@ -273,8 +256,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
           transitionCounts(qFrom)(qTo) += thisTransitionCount
 
-          // stateCounts(qFrom) += thisTransitionCount
-
           if( i == 0 )
             initialStateCounts(qFrom) += thisTransitionCount
 
@@ -285,7 +266,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     }
 
     val lastTransition = inferencer.lookupMarginal(
-      new HashVarSet( Array( hiddenVariables( hiddenVariables.size -2 ), hiddenVariables.last ) )
+      new HashVarSet( Array( hiddenVariables( hiddenVariables.size - 2 ), hiddenVariables.last ) )
     )
     hiddenStateTypes foreach { qFrom =>
       hiddenStateTypes foreach { qTo =>
@@ -304,6 +285,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     }
 
     PartialCounts(
+      math.log( generalProbability( sequence ) ),
       HashMap(
         initialStateCounts.keySet.map{ q =>
           q -> initialStateCounts(q)
@@ -330,11 +312,123 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     )
   }
 
-  def reestimate( sequence:List[ObservedState] ) = {
+  def reestimate( corpus:List[List[ObservedState]] ) = {
+
+    val corpusInitialStateCounts = new MHashMap[HiddenState,Double]{
+      override def default( q:HiddenState ) = 0D
+    }
+
+    val corpusTransitionCounts = new MHashMap[HiddenState,MHashMap[HiddenState,Double]]{
+      override def default( qFrom:HiddenState ) = {
+        this += Pair(
+          qFrom,
+          new MHashMap[HiddenState,Double]{
+            override def default( qTo:HiddenState ) = {
+              this += Pair( qTo, 0D )
+              this(qTo)
+            }
+          }
+        )
+        this(qFrom)
+      }
+    }
+
+    val corpusEmissionCounts = new MHashMap[HiddenState,MHashMap[ObservedState,Double]]{
+      override def default( q:HiddenState ) = {
+        this += Pair(
+          q,
+          new MHashMap[ObservedState,Double]{
+            override def default( o:ObservedState ) = {
+              this += Pair( o, 0D )
+              this(o)
+            }
+          }
+        )
+        this(q)
+      }
+    }
+
+        // val corpusEmissionCounts = new MHashMap[HiddenState,MHashMap[ObservedState,Double]]{
+        //   override def default( q:HiddenState ) = new MHashMap[ObservedState,Double]{
+        //     override def default( o:ObservedState ) = 0D
+        //   }
+        // }
+
+    var totalCorpusLogProb = 0D
+
+    corpus.foreach{ string =>
+      val PartialCounts(
+        stringLogProb,
+        initialStateCounts,
+        transitionCounts,
+        emissionCounts
+      ) = computePartialCounts( string ) 
+
+      val stringProb = math.exp( stringLogProb )
+
+      initialStateCounts.keySet.foreach{ q =>
+        corpusInitialStateCounts(q) += initialStateCounts(q) / stringProb
+      }
+
+      transitionCounts.keySet.foreach{ qFrom =>
+        transitionCounts(qFrom).keySet.foreach{ qTo =>
+          corpusTransitionCounts(qFrom)(qTo) += transitionCounts(qFrom)(qTo) / stringProb
+        }
+      }
+
+      emissionCounts.keySet.foreach{ q =>
+        emissionCounts(q).keySet.foreach{ o =>
+          corpusEmissionCounts(q)(o) += emissionCounts(q)(o) / stringProb
+        }
+      }
+
+      totalCorpusLogProb += stringLogProb
+
+    }
+
+    val corpusInitialStateCountsTotal = corpusInitialStateCounts.values.sum
+    val stateProbs = HashMap(
+      corpusInitialStateCounts.keySet.map{ q =>
+        q -> ( corpusInitialStateCounts( q ) / corpusInitialStateCountsTotal )
+      }.toSeq:_*
+    )
+
+    val transitionProbs = HashMap(
+      corpusTransitionCounts.keySet.map{ qFrom =>
+        val qFromTotal = corpusTransitionCounts(qFrom).values.sum
+        qFrom -> HashMap(
+          corpusTransitionCounts(qFrom).keySet.map{ qTo =>
+            qTo -> ( corpusTransitionCounts( qFrom )( qTo ) / qFromTotal )
+          }.toSeq:_*
+        )
+      }.toSeq:_*
+    )
+
+    val emissionProbs = HashMap(
+      corpusEmissionCounts.keySet.map{ q =>
+        val qTotal = corpusEmissionCounts(q).values.sum
+        q -> HashMap(
+          corpusEmissionCounts(q).keySet.map{ obs =>
+            obs -> ( corpusEmissionCounts( q )( obs ) / qTotal )
+          }.toSeq:_*
+        )
+      }.toSeq:_*
+    )
+
+    setEmissionMatrix( emissionProbs )
+    setTransitionMatrix( transitionProbs )
+    setInitialProbs( stateProbs )
+
+    totalCorpusLogProb
+    //corpus.map( s => math.log( generalProbability( s ) ) ).sum
+  }
+
+
+
+  def reestimateSingle( sequence:List[ObservedState] ) = {
     val PartialCounts(
-      //totalProb,
+      totalLogProb,
       initialStateCounts,
-      //stateCounts,
       transitionCounts,
       emissionCounts
     ) = computePartialCounts( sequence ) 
@@ -400,7 +494,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     setTransitionMatrix( transitionProbs )
     setInitialProbs( stateProbs )
 
-    generalProbability( sequence )
+    totalLogProb
   }
 
 

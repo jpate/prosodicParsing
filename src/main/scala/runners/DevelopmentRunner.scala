@@ -18,7 +18,7 @@ object DevelopmentRunner {
       _.split(" ").toList.map( ObservedState( _ ) )
     )
 
-    val observationTypes = Set(
+    val observationTypes = Set( ObservedState("#####") ) ++ Set(
       trainingData.flatten
     ).flatten
 
@@ -35,12 +35,17 @@ object DevelopmentRunner {
     println( h )
 
     println( trainingData( 0 ) )
-    var lastProb = log( h.generalProbability( trainingData(0) ) )
+    //var lastProb = log( h.generalProbability( trainingData(0) ) ) + log( h.generalProbability(
+    var lastProb = trainingData.map{ s => log( h.generalProbability( s ) ) }.sum
+    //trainingData(1)))
     println( "    " +lastProb )
     var lastGenProb = 0D
     for( n <- 0 to 100 ) {
       print( n + ":  " )
-      val newProb = log( h.reestimate( trainingData(0) ) )
+      val newProb = h.reestimateSingle(
+        //List( trainingData(0),trainingData(1) ).flatMap( ObservedState("#####")::_ )
+        trainingData.flatMap( ObservedState("#####")::_ )
+      )
       println( "    " +newProb + " (" + ((newProb - lastProb)/lastProb) + ")" )
       // val ezpzProb = h.easyPeasyTotalProbability( trainingData(0) )
       // println( "    " + ezpzProb )

@@ -18,12 +18,13 @@ object DevelopmentRunner {
       _.split(" ").toList.map( ObservedState( _ ) )
     )
 
-    val uttStart = ObservedState("UTTSTART")
-    val uttEnd = ObservedState("UTTEND")
+        // val uttStart = ObservedState("UTTSTART")
+        // val uttEnd = ObservedState("UTTEND")
 
-    val observationTypes = Set( uttStart, uttEnd  ) ++ Set(
-      trainingData.flatten
-    ).flatten
+    val observationTypes =// Set( uttStart, uttEnd  ) ++
+      Set(
+        trainingData.flatten
+      ).flatten
 
     println( trainingData(0) )
 
@@ -43,24 +44,33 @@ object DevelopmentRunner {
     //trainingData(1)))
     //println( "    " +lastProb )
     println( "BEGINNING EM" )
-    var lastProb = 1D
+    var lastProb = 0D
     var deltaLogProb = 1D
-    while( math.abs( deltaLogProb ) > 0.00001 ) {
+    var n = 0
+    while( math.abs( deltaLogProb ) > 0.00001 & n < 100 ) {
       //print( n + ":  " )
-      val newProb = h.reestimateSingle(
-        //List( trainingData(0),trainingData(1) ).flatMap( ObservedState("#####")::_ )
-        trainingData.flatMap{ List( uttStart ) ++ _ ++ List( uttEnd ) }
-      )
+
+      val newProb = h.reestimate( List( trainingData head , trainingData last ) )
+      //val newProb = h.reestimate( List( trainingData head ))//, trainingData last ) )
+      //val newProb = h.reestimate( trainingData )
+      //val newProb = h.reestimateSingle( trainingData head )
+      // val newProb = h.reestimateSingle(
+      //   //List( trainingData(0),trainingData(1) ).flatMap( ObservedState("#####")::_ )
+      //   trainingData.flatMap{ List( uttStart ) ++ _ ++ List( uttEnd ) }
+      // )
       deltaLogProb = ((newProb - lastProb)/lastProb)
-      println( "    " +newProb + " (" +  deltaLogProb + ")" )
+      println( n +  ":    " +newProb + " (" +  deltaLogProb + ")" )
+      println( n +  ":    " + h.generalProbability( trainingData head ) + "\n\n" )
+      println( n +  ":    " + math.log( h.totalProbability( trainingData head ) ) + "\n\n" )
       // val ezpzProb = h.easyPeasyTotalProbability( trainingData(0) )
       // println( "    " + ezpzProb )
       // val generalProb = h.generalProbability( trainingData(0) )
       // println( "    " + generalProb + " (" + (( generalProb - lastGenProb )/lastGenProb) + ")")
 
-      // println( h )
+      //println( h )
 
       lastProb = newProb
+      n = n + 1
       // lastGenProb = generalProb
     }
 

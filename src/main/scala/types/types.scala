@@ -132,3 +132,9 @@ case class PartialCounts(
   emissionCounts: HashMap[HiddenState,HashMap[ObservedState,Double]]
 )
 
+case class GammaCsi(
+  stringProb:Double,
+  gamma:List[HashMap[HiddenState,Double]],
+  csi:List[HashMap[HiddenState,HashMap[HiddenState,Double]]]
+)
+

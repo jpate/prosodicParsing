@@ -98,12 +98,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       observations(i).setLabel("observed."+i)
     }
 
-    /*
-    println( "tokens: " + tokens.mkString( "", " ", "") )
-    println( "hiddenVariables: " + hiddenVariables.mkString( "", " ", "") )
-    println( "observations: " + observations.mkString( "", " ", "") )
-    */
-
 
     // initial states:
     hmm.addFactor(
@@ -148,79 +142,11 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     }
   }
 
-        // def inferencingHMM( tokens:List[Observation] ) = {
-        //   // clear hmm this way; hmm.clear() breaks something.
-        //   hmm = new DirectedModel()
-
-
-        //   hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( hiddenStateAlphabet ) )
-        //   observations = Array.tabulate(tokens.size)( _ => new Variable( observationAlphabet ) )
-
-
-        //   ( 0 to tokens.size-1 ) foreach{ i =>
-        //     hiddenVariables(i).setLabel("hidden."+i)
-        //     observations(i).setLabel("observed."+i)
-        //   }
-
-        //   val observationSequence = new Assignment(
-        //     observations, tokens.map( w => observationAlphabet.lookupIndex( w ) ).toArray
-        //   )
-
-        //   /*
-        //   println( "tokens: " + tokens.mkString( "", " ", "") )
-        //   println( "hiddenVariables: " + hiddenVariables.mkString( "", " ", "") )
-        //   println( "observations: " + observations.mkString( "", " ", "") )
-        //   */
-
-
-        //   // state transitions
-        //   ( 1 to (tokens.size-1) ) foreach{ i =>
-        //     hmm.addFactor(
-        //       new CPT(
-        //         new TableFactor(
-        //           Array( hiddenVariables(i-1), hiddenVariables(i) ),
-        //             TransitionMatrix.toArray
-        //         ),
-        //         hiddenVariables(i)
-        //       )
-        //     )
-        //   }
-
-        //   // emissions
-        //   ( 0 to tokens.size-1 ) foreach { i =>
-        //     val thisObservation = new Assignment(
-        //       observations(i) ,
-        //       observationAlphabet.lookupIndex( tokens(i) )
-        //     )
-
-        //     hmm.addFactor(
-        //       new CPT(
-        //         new TableFactor(
-        //           Array( hiddenVariables(i), observations(i) ),
-        //           EmissionMatrix.toArray
-        //         ),
-        //         observations(i) //,
-        //         //thisObservation
-        //       )
-        //     )
-        //   }
-
-        //   hmm.slice( observationSequence )
-        // }
-
 
   def computePartialCounts( sequence:List[ObservedState] ) = {
     import math.log
     buildHMM( sequence )
 
-    /*
-    println("\n\n\n\n----------------\n\n\n")
-
-    println( sequence.mkString(""," ","") + ":\n\n" ) 
-    println(hmm.dumpToString())
-
-    println("\n\n\n\n----------------\n\n\n")
-    */
 
     val inferencer = new JunctionTreeInferencer()
     inferencer.computeMarginals( hmm )
@@ -270,15 +196,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
             )
           )
 
-                  // println( "(((" + thisTransitionCount )
-                  // println( "<<<" + transitionCounts(qFrom)(qTo) )
-                  // println( "{{{" + log_add(
-                  //     List(
-                  //       transitionCounts(qFrom)(qTo),
-                  //       thisTransitionCount
-                  //     )
-                  //   )
-                  // )
 
           transitionCounts(qFrom)(qTo) = log_add(
             List(
@@ -297,21 +214,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
 
 
-                  // println( "   (((" + thisTransitionCount )
-                  // println( qFrom + " -> " + sequence(i) + "   <<<" + emissionCounts(qFrom)(sequence(i)) )
-                  // println( "   {{{" + log_add(
-                  //     List(
-                  //       emissionCounts(qFrom)(sequence(i)),
-                  //       thisTransitionCount
-                  //     )
-                  //   )
-                  // )
-
-          if( sequence(i) == ObservedState("NNP") ) {
-            println( "\nposition " + i + " is " +ObservedState("NNP") )
-            println( "Original Emissions Count Is " + emissionCounts(qFrom)(sequence(i)))
-            println( "We just observed: " + thisTransitionCount )
-          }
 
           emissionCounts(qFrom)(sequence(i)) = log_add(
             List(
@@ -328,68 +230,12 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
               )
             )
           }
-
-          if( sequence(i) == ObservedState("NNP") ) {
-            println( "This results in a total partial count of " +
-            emissionCounts(qFrom)(sequence(i)))
-          }
-
-        //println( "(((((((((((((("+thisTransitionCount+"))))))))))))))")
-
         }
       }
     }
 
-    /*
-    val lastTransition = inferencer.lookupMarginal(
-      new HashVarSet( Array( hiddenVariables( hiddenVariables.size - 2 ), hiddenVariables.last ) )
-    )
-    hiddenStateTypes foreach { qFrom =>
-      hiddenStateTypes foreach { qTo =>
-        val lastTransitionCount = lastTransition.logValue(
-          new Assignment(
-            Array( hiddenVariables( hiddenVariables.size -2 ), hiddenVariables.last ),
-            Array(
-              hiddenStateAlphabet.lookupIndex( qFrom ),
-              hiddenStateAlphabet.lookupIndex( qTo )
-            )
-          )
-        )
-
-                // println( "   (((" + lastTransitionCount )
-                // println( "   <<<" + emissionCounts(qTo)(sequence.last) )
-                // println( "   {{{" + log_add(
-                //     List(
-                //       emissionCounts(qTo)(sequence.last),
-                //       lastTransitionCount
-                //     )
-                //   )
-                // )
-
-        //if( sequence.last == ObservedState( "NNP" ) )
-        //println( "[[[[[[[[[[[[[["+lastTransitionCount+"]]]]]]]]]]]]]]")
-        emissionCounts(qTo)(sequence.last) = log_add(
-          List(
-            emissionCounts(qTo)(sequence.last),
-            lastTransitionCount
-          )
-        )
-      }
-    }
-    */
-
-            // println( "Here is the transition matrix from computePartialCounts" )
-
-            // println( transitionCounts )
-
-            // println( "Here is the emission matrix from computePartialCounts" )
-
-            // println( emissionCounts )
-
     PartialCounts(
       generalProbability( sequence ),
-      //log( generalProbability( sequence ) ),
-      //log( totalProbability( sequence ) ),
       HashMap(
         initialStateCounts.keySet.map{ q =>
           q -> initialStateCounts(q)
@@ -408,8 +254,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         emissionCounts.keySet.map{ q =>
           q -> HashMap(
             emissionCounts(q).keySet.map{ obs =>
-              if( obs == ObservedState("NNP") )
-                println( "    Yep, got a partial count and it is: " + emissionCounts(q)(obs) )
               obs -> emissionCounts(q)(obs)
             }.toSeq:_*
           )
@@ -479,12 +323,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       override def default( q:HiddenState ) = Double.NegativeInfinity
     }
 
-        // val corpusEmissionCounts = new MHashMap[HiddenState,MHashMap[ObservedState,Double]]{
-        //   override def default( q:HiddenState ) = new MHashMap[ObservedState,Double]{
-        //     override def default( o:ObservedState ) = 0D
-        //   }
-        // }
-
     var totalCorpusLogProb = 0D
 
     var n = 0
@@ -497,13 +335,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         emissionCounts
       ) = computePartialCounts( string ) 
 
-      println( "log prob for: "  + string + " is " + stringLogProb )
-
-          // if( n%10==0 )
-          // print( n + "; ")
-          // n = n + 1
-
-      //val stringProb = math.exp( stringLogProb )
 
       var stringInitialStateDenominator = Double.NegativeInfinity
 
@@ -584,17 +415,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
       emissionCounts.keySet.foreach{ q =>
         emissionCounts(q).keySet.foreach{ o =>
-          if( o == ObservedState("NNP") & false )
-            println(
-              "stringEmissionCounts is first: " +
-              stringEmissionCounts(q)(o) + "\n"+
-              "stringEmissionDenominator is first: " +
-              stringEmissionDenominator(q) + "\n"//+
-              //"corpusEmissionCounts is first: " +
-              //corpusEmissionCounts(q)(o) + "\n"+
-              //"corpusEmissionDenominator is first: " +
-              //corpusEmissionDenominator(q) + "\n"
-            )
           stringEmissionDenominator(q) = log_add(
             List(
               stringEmissionDenominator(q),
@@ -607,17 +427,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
               emissionCounts(q)(o)
             )
           )
-          if( o == ObservedState("NNP")  & false)
-            println(
-              "stringEmissionCounts is last: " +
-              stringEmissionCounts(q)(o) + "\n"+
-              "stringEmissionDenominator is last: " +
-              stringEmissionDenominator(q) + "\n"//+
-              //"corpusEmissionCounts is last: " +
-              //corpusEmissionCounts(q)(o) + "\n"+
-              //"corpusEmissionDenominator is last: " +
-              //corpusEmissionDenominator(q) + "\n"
-            )
         }
       }
 
@@ -682,7 +491,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         )
       }
 
-      println("      >>>>" + stringLogProb + "<<<<")
       totalCorpusLogProb += stringLogProb
     }
 
@@ -742,35 +550,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       emissionCounts
     ) = computePartialCounts( sequence ) 
 
-    println( "log prob for: "  + sequence + " is " + totalLogProb )
-
-          // println( "Partial Counts Are " )
-
-          // println( "State counts" )
-
-          // println(
-          //   stateCounts.keySet.map{ q => q + ": " + stateCounts(q) }.mkString("\n\t","\n\t","\n")
-          // )
-          // 
-          // println( "Transition counts" )
-
-          // println(
-          //   transitionCounts.keySet.map{ qFrom =>
-          //     transitionCounts(qFrom).keySet.map{ qTo =>
-          //       qFrom + " -> " + qTo + ": " + transitionCounts(qFrom)(qTo)
-          //     }.mkString("","\n\t","\n")
-          //   }.mkString("\n\t","\n\t","\n")
-          // )
-
-          // println( "Emission counts" )
-
-          // println(
-          //   emissionCounts.keySet.map{ q =>
-          //     emissionCounts(q).keySet.map{ obs =>
-          //       q  + " -> " + obs + ": " + emissionCounts(q)(obs)
-          //     }.mkString("","\n","\n")
-          //   }.mkString("\n\t","\n\t","\n")
-          // )
 
     val initialStateCountsTotal = initialStateCounts.values.reduceLeft( (a,b) => log_add( a::b::Nil ) )
     val stateProbs = HashMap(
@@ -799,10 +578,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         val qTotal = emissionCounts(q).values.reduceLeft( (a,b) => log_add( a::b::Nil ) )
         q -> HashMap(
           emissionCounts(q).keySet.map{ obs =>
-            println( 
-              q + " -> " + obs + "[[[[" + qTotal + "]]][[[ " + emissionCounts(q)(obs) + "]]][[[" +
-              (exp( emissionCounts( q )( obs ) -  qTotal) )
-            )
             obs -> (
               exp( emissionCounts( q )( obs ) -  qTotal )
             )
@@ -815,9 +590,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     setTransitionMatrix( transitionProbs )
     setInitialProbs( stateProbs )
 
-    println( "NEW HMMM\n\n\n\n\n\n\n\n\n\n" )
-    println( toString )
-    println( "\n\n\n\n\n\n\n\n\n\n" )
 
     totalLogProb
   }
@@ -904,9 +676,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     // clear hmm this way; hmm.clear() breaks something.
     hmm = new DirectedModel()
 
-    println( "computing general probability with this HMM: " )
-    println( toString )
-
 
     hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( hiddenStateAlphabet ) )
     observations = Array.tabulate(tokens.size)( _ => new Variable( observationAlphabet ) )
@@ -916,13 +685,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       hiddenVariables(i).setLabel("hidden."+i)
       observations(i).setLabel("observed."+i)
     }
-
-          /*
-          println( "tokens: " + tokens.mkString( "", " ", "") )
-          println( "hiddenVariables: " + hiddenVariables.mkString( "", " ", "") )
-          println( "observations: " + observations.mkString( "", " ", "") )
-          */
-
 
     // initial states:
     hmm.addFactor(
@@ -972,9 +734,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       observations, tokens.map( w => observationAlphabet.lookupIndex( w ) ).toArray
     )
 
-    //println( "yeehaw " +  hmm.slice(observationSequence).sum )
-    //hmm.slice(observationSequence).logSum
-    //math.log( inferencer.query( hmm, observationSequence ) )
     inferencer.queryLog( hmm, observationSequence )
   }
 
@@ -988,7 +747,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         )
 
       (allObservations.tail).foreach{ obs =>
-        // println( "---===---===:    " + obs )
         lastAlphas = HashMap(
           hiddenStateTypes.map{ qTo =>
             qTo -> {

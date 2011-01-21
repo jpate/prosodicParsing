@@ -50,18 +50,20 @@ object DevelopmentRunner {
     while( math.abs( deltaLogProb ) > 0.00001 & n < 100 ) {
       //print( n + ":  " )
 
-      val newProb = h.reestimate( List( trainingData head , trainingData last ) )
+      val newProb = h.reestimate( trainingData )// List( trainingData head , trainingData last ) )
       //val newProb = h.reestimate( List( trainingData head ))//, trainingData last ) )
       //val newProb = h.reestimate( trainingData )
-      //val newProb = h.reestimateSingle( trainingData head )
+      // val newProb = h.reestimateSingle( trainingData last )
       // val newProb = h.reestimateSingle(
       //   //List( trainingData(0),trainingData(1) ).flatMap( ObservedState("#####")::_ )
       //   trainingData.flatMap{ List( uttStart ) ++ _ ++ List( uttEnd ) }
       // )
       deltaLogProb = ((newProb - lastProb)/lastProb)
       println( n +  ":    " +newProb + " (" +  deltaLogProb + ")" )
-      println( n +  ":    " + h.generalProbability( trainingData head ) + "\n\n" )
-      println( n +  ":    " + math.log( h.totalProbability( trainingData head ) ) + "\n\n" )
+      // println( n +  ":    " + h.generalProbability( trainingData head ) + "\n\n" )
+      // println( n +  ":        " + h.generalProbability( trainingData last ) + "\n\n" )
+      // println( n +  ":    " + math.log( h.totalProbability( trainingData head ) ) + "\n\n" )
+      // println( n +  ":        " + math.log( h.totalProbability( trainingData last ) ) + "\n\n" )
       // val ezpzProb = h.easyPeasyTotalProbability( trainingData(0) )
       // println( "    " + ezpzProb )
       // val generalProb = h.generalProbability( trainingData(0) )
@@ -73,6 +75,8 @@ object DevelopmentRunner {
       n = n + 1
       // lastGenProb = generalProb
     }
+
+    println( n + ":   " + h.generalProbability( trainingData last ) )
 
     println( "EM RESULTS IN: " )
 

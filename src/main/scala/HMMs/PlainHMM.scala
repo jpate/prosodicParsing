@@ -308,6 +308,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
                   // )
 
           if( sequence(i) == ObservedState("NNP") ) {
+            println( "\nposition " + i + " is " +ObservedState("NNP") )
             println( "Original Emissions Count Is " + emissionCounts(qFrom)(sequence(i)))
             println( "We just observed: " + thisTransitionCount )
           }
@@ -320,7 +321,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
           )
 
           if( i ==  (hiddenVariables.size-2) ) {
-            emissionCounts(qFrom)(sequence(i+1)) = log_add(
+            emissionCounts(qTo)(sequence(i+1)) = log_add(
               List(
                 emissionCounts(qTo)(sequence(i+1)),
                 thisTransitionCount
@@ -418,20 +419,19 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
   }
 
   // translated from nltk
-  def log_add( ns:List[Double] ) = math.log( ns.map( math.exp(_) ).sum )
-  
-  // {
-  //   import math.{log,exp}
-  //   val maxVal = ns.max
-  //   if( maxVal > scala.Double.NegativeInfinity ) {
-  //     var sum_diffs = 0D
-  //     ns.foreach{ n => sum_diffs += exp( n - maxVal ) }
-  //     //maxVal + log( ns.reduceLeft( (a,b) => a + exp( b - maxVal ) ) )
-  //     maxVal + log( sum_diffs )
-  //   } else {
-  //     maxVal
-  //   }
-  // }
+  def log_add( ns:List[Double] ) = // math.log( ns.map( math.exp(_) ).sum )
+  {
+    import math.{log,exp}
+    val maxVal = ns.max
+    if( maxVal > scala.Double.NegativeInfinity ) {
+      var sum_diffs = 0D
+      ns.foreach{ n => sum_diffs += exp( n - maxVal ) }
+      //maxVal + log( ns.reduceLeft( (a,b) => a + exp( b - maxVal ) ) )
+      maxVal + log( sum_diffs )
+    } else {
+      maxVal
+    }
+  }
 
   def reestimate( corpus:List[List[ObservedState]] ) = {
     import math.{log,exp}
@@ -560,8 +560,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         stringInitialStateCounts(q) = log_add(
           List(
             stringInitialStateCounts(q),
-            initialStateCounts(q)//,
-            //-1 * stringLogProb
+            initialStateCounts(q)
           )
         )
       }
@@ -577,8 +576,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
           stringTransitionCounts(qFrom)(qTo) = log_add(
             List(
               stringTransitionCounts(qFrom)(qTo),
-              transitionCounts(qFrom)(qTo)//,
-              //-1 * stringLogProb
+              transitionCounts(qFrom)(qTo)
             )
           )
         }
@@ -586,16 +584,16 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
       emissionCounts.keySet.foreach{ q =>
         emissionCounts(q).keySet.foreach{ o =>
-          if( o == ObservedState("NNP") )
+          if( o == ObservedState("NNP") & false )
             println(
               "stringEmissionCounts is first: " +
               stringEmissionCounts(q)(o) + "\n"+
               "stringEmissionDenominator is first: " +
-              stringEmissionDenominator(q) + "\n"+
-              "corpusEmissionCounts is first: " +
-              corpusEmissionCounts(q)(o) + "\n"+
-              "corpusEmissionDenominator is first: " +
-              corpusEmissionDenominator(q) + "\n"
+              stringEmissionDenominator(q) + "\n"//+
+              //"corpusEmissionCounts is first: " +
+              //corpusEmissionCounts(q)(o) + "\n"+
+              //"corpusEmissionDenominator is first: " +
+              //corpusEmissionDenominator(q) + "\n"
             )
           stringEmissionDenominator(q) = log_add(
             List(
@@ -606,20 +604,19 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
           stringEmissionCounts(q)(o) = log_add(
             List(
               stringEmissionCounts(q)(o),
-              emissionCounts(q)(o)//,
-              //-1 * stringLogProb
+              emissionCounts(q)(o)
             )
           )
-          if( o == ObservedState("NNP") )
+          if( o == ObservedState("NNP")  & false)
             println(
               "stringEmissionCounts is last: " +
               stringEmissionCounts(q)(o) + "\n"+
               "stringEmissionDenominator is last: " +
-              stringEmissionDenominator(q) + "\n"+
-              "corpusEmissionCounts is last: " +
-              corpusEmissionCounts(q)(o) + "\n"+
-              "corpusEmissionDenominator is last: " +
-              corpusEmissionDenominator(q) + "\n"
+              stringEmissionDenominator(q) + "\n"//+
+              //"corpusEmissionCounts is last: " +
+              //corpusEmissionCounts(q)(o) + "\n"+
+              //"corpusEmissionDenominator is last: " +
+              //corpusEmissionDenominator(q) + "\n"
             )
         }
       }
@@ -631,7 +628,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         corpusInitialStateCounts(q) = log_add(
           List(
             corpusInitialStateCounts(q),
-            stringInitialStateCounts(q) - stringLogProb
+            stringInitialStateCounts(q) //- stringLogProb
           )
         )
       }
@@ -639,7 +636,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       corpusInitialStateDenominator = log_add(
         List(
           corpusInitialStateDenominator,
-          stringInitialStateDenominator - stringLogProb
+          stringInitialStateDenominator //- stringLogProb
         )
       )
 
@@ -649,7 +646,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
           corpusTransitionCounts(qFrom)(qTo) = log_add(
             List(
               corpusTransitionCounts(qFrom)(qTo),
-              stringTransitionCounts(qFrom)(qTo) - stringLogProb
+              stringTransitionCounts(qFrom)(qTo) //- stringLogProb
             )
           )
         }
@@ -659,7 +656,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         corpusTransitionDenominator(qFrom) = log_add(
           List(
             corpusTransitionDenominator(qFrom),
-            stringTransitionDenominator(qFrom) - stringLogProb
+            stringTransitionDenominator(qFrom) //- stringLogProb
           )
         )
       }
@@ -670,7 +667,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
           corpusEmissionCounts(q)(obs) = log_add(
             List(
               corpusEmissionCounts(q)(obs),
-              stringEmissionCounts(q)(obs) - stringLogProb
+              stringEmissionCounts(q)(obs) //- stringLogProb
             )
           )
         }
@@ -680,7 +677,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         corpusEmissionDenominator(qFrom) = log_add(
           List(
             corpusEmissionDenominator(qFrom),
-            stringEmissionDenominator(qFrom) - stringLogProb
+            stringEmissionDenominator(qFrom) //- stringLogProb
           )
         )
       }
@@ -977,7 +974,8 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
     //println( "yeehaw " +  hmm.slice(observationSequence).sum )
     //hmm.slice(observationSequence).logSum
-    math.log( inferencer.query( hmm, observationSequence ) )
+    //math.log( inferencer.query( hmm, observationSequence ) )
+    inferencer.queryLog( hmm, observationSequence )
   }
 
   def totalProbability( allObservations:List[ObservedState] ):Double = {

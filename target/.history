@@ -2,3 +2,10 @@ compile
 q
 exit
 compile
+doc
+graph
+actions
+graph-pkg
+graph
+graph-src
+compile

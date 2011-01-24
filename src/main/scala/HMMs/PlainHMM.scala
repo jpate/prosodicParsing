@@ -1,20 +1,18 @@
 package ProsodicParsing.HMMs
 
 import ProsodicParsing.types._
-import cc.mallet.types.{LabelAlphabet,LabelSequence}
 import cc.mallet.grmm._
 import cc.mallet.grmm.types._
 import cc.mallet.grmm.inference.JunctionTreeInferencer
 import scala.collection.immutable.{HashMap,HashSet}
 import scala.collection.mutable.{HashMap => MHashMap}
 
-class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[ObservedState] ) {
+class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[ObservedState] )
+  extends AbstractHMM[HiddenState,ObservedState] {
   val observationTypes = observationTypesSet.toList.sortWith( (a,b) => a < b )
-  val observationAlphabet = new LabelAlphabet()
   observationTypes.foreach( observationAlphabet.lookupIndex( _, true ) )
 
   val hiddenStateTypes = hiddenStateTypesSet.toList.sortWith( (a,b) => a < b )
-  val hiddenStateAlphabet = new LabelAlphabet()
   hiddenStateTypes.foreach( hiddenStateAlphabet.lookupIndex( _, true ) )
 
   val numHiddenStates = hiddenStateTypes.size
@@ -57,6 +55,8 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     )
   }
 
+  var parameters = Set( InitialStateProbabilities, TransitionMatrix, EmissionMatrix )
+
   def setTransitionMatrix( newTransitions:HashMap[HiddenState,HashMap[HiddenState,Double]] ) {
     TransitionMatrix.setCPT( newTransitions )
   }
@@ -69,22 +69,23 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     InitialStateProbabilities.setPT( newInitialProbs )
   }
 
-  def randomize(n:Int) {
-    TransitionMatrix.randomize(n)
-    EmissionMatrix.randomize(n)
-    InitialStateProbabilities.randomize(n)
-  }
+          // def randomize(n:Int) {
+          //   TransitionMatrix.randomize(n)
+          //   EmissionMatrix.randomize(n)
+          //   InitialStateProbabilities.randomize(n)
+          // }
 
-  def normalize {
-    TransitionMatrix.normalize
-    EmissionMatrix.normalize
-    InitialStateProbabilities.normalize
-  }
+          // def normalize {
+          //   TransitionMatrix.normalize
+          //   EmissionMatrix.normalize
+          //   InitialStateProbabilities.normalize
+          // }
 
-  var hmm = new DirectedModel()
-  var hiddenVariables:Array[Variable] = Array()
-  var observations:Array[Variable] = Array()
-  def buildHMM( tokens:List[ObservedState] ) {
+          // var hmm = new DirectedModel()
+          // var hiddenVariables:Array[Variable] = Array()
+          // var observations:Array[Variable] = Array()
+
+  def buildSlicedHMM( tokens:List[ObservedState] ) {
     // clear hmm this way; hmm.clear() breaks something.
     hmm = new DirectedModel()
 
@@ -142,10 +143,65 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     }
   }
 
+  def buildHMM( tokens:List[ObservedState] ) {
+    // clear hmm this way; hmm.clear() breaks something.
+    hmm = new DirectedModel()
+
+
+    hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( hiddenStateAlphabet ) )
+    observations = Array.tabulate(tokens.size)( _ => new Variable( observationAlphabet ) )
+
+
+    ( 0 to tokens.size-1 ) foreach{ i =>
+      hiddenVariables(i).setLabel("hidden."+i)
+      observations(i).setLabel("observed."+i)
+    }
+
+    // initial states:
+    hmm.addFactor(
+      new CPT(
+        new TableFactor(
+          Array( hiddenVariables(0), hiddenVariables(1) ),
+          (InitialStateProbabilities * TransitionMatrix ).toArray
+        ),
+        hiddenVariables(1)
+      )
+    )
+    // state transitions
+    ( 2 to (tokens.size-1) ) foreach{ i =>
+      hmm.addFactor(
+        new CPT(
+          new TableFactor(
+            Array( hiddenVariables(i-1), hiddenVariables(i) ),
+              TransitionMatrix.toArray
+          ),
+          hiddenVariables(i)
+        )
+      )
+    }
+
+    // emissions
+    ( 0 to tokens.size-1 ) foreach { i =>
+      val thisObservation = new Assignment(
+        observations(i),
+        observationAlphabet.lookupIndex( tokens(i) )
+      )
+
+      hmm.addFactor(
+        new CPT(
+          new TableFactor(
+            Array( hiddenVariables(i), observations(i) ),
+            EmissionMatrix.toArray
+          ),
+          observations(i)
+        )
+      )
+    }
+  }
 
   def computePartialCounts( sequence:List[ObservedState] ) = {
     import math.log
-    buildHMM( sequence )
+    buildSlicedHMM( sequence )
 
 
     val inferencer = new JunctionTreeInferencer()
@@ -234,7 +290,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       }
     }
 
-    PartialCounts(
+    PlainHMMPartialCounts(
       generalProbability( sequence ),
       HashMap(
         initialStateCounts.keySet.map{ q =>
@@ -262,20 +318,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     )
   }
 
-  // translated from nltk
-  def log_add( ns:List[Double] ) = // math.log( ns.map( math.exp(_) ).sum )
-  {
-    import math.{log,exp}
-    val maxVal = ns.max
-    if( maxVal > scala.Double.NegativeInfinity ) {
-      var sum_diffs = 0D
-      ns.foreach{ n => sum_diffs += exp( n - maxVal ) }
-      //maxVal + log( ns.reduceLeft( (a,b) => a + exp( b - maxVal ) ) )
-      maxVal + log( sum_diffs )
-    } else {
-      maxVal
-    }
-  }
 
   def reestimate( corpus:List[List[ObservedState]] ) = {
     import math.{log,exp}
@@ -328,7 +370,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     var n = 0
     corpus.foreach{ string =>
       // sums over time
-      val PartialCounts(
+      val PlainHMMPartialCounts(
         stringLogProb,
         initialStateCounts,
         transitionCounts,
@@ -381,20 +423,8 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       }
 
       // sum over strings, scaling the numerator and denominator summands by the string probability
-      initialStateCounts.keySet.foreach{ q =>
-        stringInitialStateDenominator = log_add(
-          List(
-            stringInitialStateDenominator,
-            initialStateCounts(q)
-          )
-        )
-        stringInitialStateCounts(q) = log_add(
-          List(
-            stringInitialStateCounts(q),
-            initialStateCounts(q)
-          )
-        )
-      }
+      // initialStateCounts.keySet.foreach{ q =>
+      // }
 
       transitionCounts.keySet.foreach{ qFrom =>
         transitionCounts(qFrom).keySet.foreach{ qTo =>
@@ -411,36 +441,42 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
             )
           )
         }
-      }
-
-      emissionCounts.keySet.foreach{ q =>
-        emissionCounts(q).keySet.foreach{ o =>
-          stringEmissionDenominator(q) = log_add(
+        stringInitialStateDenominator = log_add(
+          List(
+            stringInitialStateDenominator,
+            initialStateCounts(qFrom)
+          )
+        )
+        stringInitialStateCounts(qFrom) = log_add(
+          List(
+            stringInitialStateCounts(qFrom),
+            initialStateCounts(qFrom)
+          )
+        )
+        emissionCounts(qFrom).keySet.foreach{ o =>
+          stringEmissionDenominator(qFrom) = log_add(
             List(
-              stringEmissionDenominator(q),
-              emissionCounts(q)(o)
+              stringEmissionDenominator(qFrom),
+              emissionCounts(qFrom)(o)
             )
           )
-          stringEmissionCounts(q)(o) = log_add(
+          stringEmissionCounts(qFrom)(o) = log_add(
             List(
-              stringEmissionCounts(q)(o),
-              emissionCounts(q)(o)
+              stringEmissionCounts(qFrom)(o),
+              emissionCounts(qFrom)(o)
             )
           )
         }
       }
 
+      // emissionCounts.keySet.foreach{ q =>
+      // }
 
 
 
-      stringInitialStateCounts.keySet.foreach{ q =>
-        corpusInitialStateCounts(q) = log_add(
-          List(
-            corpusInitialStateCounts(q),
-            stringInitialStateCounts(q) //- stringLogProb
-          )
-        )
-      }
+
+      // stringInitialStateCounts.keySet.foreach{ q =>
+      // }
 
       corpusInitialStateDenominator = log_add(
         List(
@@ -459,30 +495,26 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
             )
           )
         }
-      }
-
-      stringTransitionDenominator.keySet.foreach{ qFrom =>
+        corpusInitialStateCounts(qFrom) = log_add(
+          List(
+            corpusInitialStateCounts(qFrom),
+            stringInitialStateCounts(qFrom) //- stringLogProb
+          )
+        )
         corpusTransitionDenominator(qFrom) = log_add(
           List(
             corpusTransitionDenominator(qFrom),
             stringTransitionDenominator(qFrom) //- stringLogProb
           )
         )
-      }
-
-
-      stringEmissionCounts.keySet.foreach{ q =>
-        stringEmissionCounts(q).keySet.foreach{ obs =>
-          corpusEmissionCounts(q)(obs) = log_add(
+        stringEmissionCounts(qFrom).keySet.foreach{ obs =>
+          corpusEmissionCounts(qFrom)(obs) = log_add(
             List(
-              corpusEmissionCounts(q)(obs),
-              stringEmissionCounts(q)(obs) //- stringLogProb
+              corpusEmissionCounts(qFrom)(obs),
+              stringEmissionCounts(qFrom)(obs) //- stringLogProb
             )
           )
         }
-      }
-
-      stringEmissionDenominator.keySet.foreach{ qFrom =>
         corpusEmissionDenominator(qFrom) = log_add(
           List(
             corpusEmissionDenominator(qFrom),
@@ -490,6 +522,16 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
           )
         )
       }
+
+      // stringTransitionDenominator.keySet.foreach{ qFrom =>
+      // }
+
+
+      // stringEmissionCounts.keySet.foreach{ q =>
+      // }
+
+      // stringEmissionDenominator.keySet.foreach{ qFrom =>
+      // }
 
       totalCorpusLogProb += stringLogProb
     }
@@ -543,7 +585,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
   def reestimateSingle( sequence:List[ObservedState] ) = {
     import math.{log,exp}
-    val PartialCounts(
+    val PlainHMMPartialCounts(
       totalLogProb,
       initialStateCounts,
       transitionCounts,
@@ -672,70 +714,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     )
   }
 
-  def generalProbability( tokens:List[ObservedState] ) = {
-    // clear hmm this way; hmm.clear() breaks something.
-    hmm = new DirectedModel()
-
-
-    hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( hiddenStateAlphabet ) )
-    observations = Array.tabulate(tokens.size)( _ => new Variable( observationAlphabet ) )
-
-
-    ( 0 to tokens.size-1 ) foreach{ i =>
-      hiddenVariables(i).setLabel("hidden."+i)
-      observations(i).setLabel("observed."+i)
-    }
-
-    // initial states:
-    hmm.addFactor(
-      new CPT(
-        new TableFactor(
-          Array( hiddenVariables(0), hiddenVariables(1) ),
-          (InitialStateProbabilities * TransitionMatrix ).toArray
-        ),
-        hiddenVariables(1)
-      )
-    )
-    // state transitions
-    ( 2 to (tokens.size-1) ) foreach{ i =>
-      hmm.addFactor(
-        new CPT(
-          new TableFactor(
-            Array( hiddenVariables(i-1), hiddenVariables(i) ),
-              TransitionMatrix.toArray
-          ),
-          hiddenVariables(i)
-        )
-      )
-    }
-
-    // emissions
-    ( 0 to tokens.size-1 ) foreach { i =>
-      val thisObservation = new Assignment(
-        observations(i),
-        observationAlphabet.lookupIndex( tokens(i) )
-      )
-
-      hmm.addFactor(
-        new CPT(
-          new TableFactor(
-            Array( hiddenVariables(i), observations(i) ),
-            EmissionMatrix.toArray
-          ),
-          observations(i)
-        )
-      )
-    }
-
-    val inferencer = new JunctionTreeInferencer()
-    
-
-    val observationSequence = new Assignment(
-      observations, tokens.map( w => observationAlphabet.lookupIndex( w ) ).toArray
-    )
-
-    inferencer.queryLog( hmm, observationSequence )
-  }
 
   def totalProbability( allObservations:List[ObservedState] ):Double = {
     def forwardPass( allObservations:List[ObservedState] ) = {

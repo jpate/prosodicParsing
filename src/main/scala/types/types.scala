@@ -9,10 +9,21 @@ abstract class Label(s:String) {
   def >( l2:Label) = s > l2.toString
 }
 
-case class HiddenState(s:String) extends Label(s)
-case class ObservedState(s:String) extends Label(s)
+abstract class HiddenLabel( s:String ) extends Label(s)
+abstract class ObservedLabel( s:String ) extends Label(s)
 
-abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] {
+case class HiddenState(s:String) extends HiddenLabel(s)
+case class ObservedState(s:String) extends ObservedLabel(s)
+
+case class HiddenStatePair( hidd1:String, hidd2:String ) extends HiddenLabel( hidd1+"#"+hidd2 )
+case class ObservedStatePair( obs1:String, obs2:String ) extends ObservedLabel( obs1+"#"+obs2 )
+
+abstract class AbstractDistribution {
+  def randomize(n:Int):Unit
+  def normalize:Unit
+}
+
+abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
   var cpt:HashMap[T,HashMap[U,Double]]
 
   def apply( k:T ) = cpt( k )
@@ -70,10 +81,9 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] {
       parent + " --> " +ch + ":\t" + cpt(parent)(ch)
     }.mkString("\n\t","\n\t","")
   }.mkString("","\n","\n")
-
 }
 
-abstract class ProbabilityDistribution[T<:Label] {
+abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
   var pt:HashMap[T,Double]
 
   def setPT( updatedPT: HashMap[T,Double] ) {
@@ -125,12 +135,15 @@ abstract class ProbabilityDistribution[T<:Label] {
   }.mkString("\n\t","\n\t","\n")
 }
 
-case class PartialCounts(
+
+abstract class PartialCounts
+
+case class PlainHMMPartialCounts(
   stringProb: Double,
   stateCounts: HashMap[HiddenState,Double],
   transitionCounts: HashMap[HiddenState,HashMap[HiddenState,Double]],
   emissionCounts: HashMap[HiddenState,HashMap[ObservedState,Double]]
-)
+) extends PartialCounts
 
 case class GammaCsi(
   stringProb:Double,

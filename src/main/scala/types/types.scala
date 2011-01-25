@@ -3,20 +3,23 @@ import scala.collection.immutable.HashMap
 
 
 abstract class Label(s:String) {
+  // THIS IS NECESSARY TO GET A PREDICTABLE SORT SO THAT toArray IS STABLE
   override def toString = s
 
-  def <( l2:Label) = s < l2.toString
-  def >( l2:Label) = s > l2.toString
+  def <( l2:Label) = toString < l2.toString
+  def >( l2:Label) = toString > l2.toString
 }
 
 abstract class HiddenLabel( s:String ) extends Label(s)
 abstract class ObservedLabel( s:String ) extends Label(s)
 
-case class HiddenState(s:String) extends HiddenLabel(s)
+case class HiddenState(s:String) extends HiddenLabel(s) {
+  def * (hiddenState:HiddenState):HiddenStatePair = HiddenStatePair( s, hiddenState.s )
+}
 case class ObservedState(s:String) extends ObservedLabel(s)
 
-case class HiddenStatePair( hidd1:String, hidd2:String ) extends HiddenLabel( hidd1+"#"+hidd2 )
-case class ObservedStatePair( obs1:String, obs2:String ) extends ObservedLabel( obs1+"#"+obs2 )
+case class HiddenStatePair( hidd1:String, hidd2:String ) extends HiddenLabel( hidd1+"^"+hidd2 )
+case class ObservedStatePair( obs1:String, obs2:String ) extends ObservedLabel( obs1+"^"+obs2 )
 
 abstract class AbstractDistribution {
   def randomize(n:Int):Unit
@@ -103,6 +106,27 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
       )
     }
 
+  //type U<:Label
+  /*
+  def *( otherPT: ProbabilityDistribution[HiddenState] ):ProbabilityDistribution[HiddenStatePair] = {
+    val newPT = HashMap{
+        keySet.flatMap{ x =>
+          otherPT.domain.map{ y =>
+            //HiddenStatePair(x.s, y) ->  apply(x) * otherPT(y)
+            (y * x) ->  apply(x) * otherPT(y)
+          }
+        }.toSeq:_*
+      }
+
+    new ProbabilityDistribution[HiddenStatePair] {
+      //assert( domain == otherPT.domain )
+      var pt = newPT
+    }
+  }
+  */
+
+  def domain = pt.keySet
+
   def normalize {
     val max = pt.values.sum
     pt = HashMap(
@@ -143,6 +167,16 @@ case class PlainHMMPartialCounts(
   stateCounts: HashMap[HiddenState,Double],
   transitionCounts: HashMap[HiddenState,HashMap[HiddenState,Double]],
   emissionCounts: HashMap[HiddenState,HashMap[ObservedState,Double]]
+) extends PartialCounts
+
+case class CoupledHMMPartialCounts(
+  stringProb: Double,
+  //stateCounts: HashMap[HiddenState,Double],
+  initialStateCounts: HashMap[HiddenStatePair,Double],
+  transitionCountsA: HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
+  transitionCountsB: HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
+  emissionCountsA: HashMap[HiddenState,HashMap[ObservedState,Double]],
+  emissionCountsB: HashMap[HiddenState,HashMap[ObservedState,Double]]
 ) extends PartialCounts
 
 case class GammaCsi(

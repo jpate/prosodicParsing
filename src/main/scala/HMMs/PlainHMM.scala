@@ -1,6 +1,7 @@
 package ProsodicParsing.HMMs
 
 import ProsodicParsing.types._
+import cc.mallet.types.LabelAlphabet
 import cc.mallet.grmm._
 import cc.mallet.grmm.types._
 import cc.mallet.grmm.inference.JunctionTreeInferencer
@@ -8,14 +9,15 @@ import scala.collection.immutable.{HashMap,HashSet}
 import scala.collection.mutable.{HashMap => MHashMap}
 
 class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[ObservedState] )
-  extends AbstractHMM[HiddenState,ObservedState] {
-  val observationTypes = observationTypesSet.toList.sortWith( (a,b) => a < b )
-  observationTypes.foreach( observationAlphabet.lookupIndex( _, true ) )
+  extends AbstractHMM[HiddenState,ObservedState] (hiddenStateTypesSet, observationTypesSet) {
 
-  val hiddenStateTypes = hiddenStateTypesSet.toList.sortWith( (a,b) => a < b )
+  val observationAlphabet = new LabelAlphabet()
+  val hiddenStateAlphabet = new LabelAlphabet()
+
+  observationTypes.foreach( observationAlphabet.lookupIndex( _, true ) )
   hiddenStateTypes.foreach( hiddenStateAlphabet.lookupIndex( _, true ) )
 
-  val numHiddenStates = hiddenStateTypes.size
+
 
   object TransitionMatrix extends ConditionalProbabilityDistribution[HiddenState,HiddenState] {
     // For now we'll initialize to a uniform transition matrix and define a
@@ -182,11 +184,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
     // emissions
     ( 0 to tokens.size-1 ) foreach { i =>
-      val thisObservation = new Assignment(
-        observations(i),
-        observationAlphabet.lookupIndex( tokens(i) )
-      )
-
       hmm.addFactor(
         new CPT(
           new TableFactor(
@@ -199,8 +196,13 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     }
   }
 
+
+  def generateObservationSequence( tokens:List[ObservedState] ) = new Assignment(
+      observations, tokens.map( w => observationAlphabet.lookupIndex( w ) ).toArray
+    )
+
+
   def computePartialCounts( sequence:List[ObservedState] ) = {
-    import math.log
     buildSlicedHMM( sequence )
 
 
@@ -547,7 +549,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
     val transitionProbs = HashMap(
       corpusTransitionCounts.keySet.map{ qFrom =>
-        //val qFromTotal = corpusTransitionCounts(qFrom).values.sum
         qFrom -> HashMap(
           corpusTransitionCounts(qFrom).keySet.map{ qTo =>
             qTo -> (
@@ -560,7 +561,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
     val emissionProbs = HashMap(
       corpusEmissionCounts.keySet.map{ q =>
-        //val qTotal = corpusEmissionCounts(q).values.sum
         q -> HashMap(
           corpusEmissionCounts(q).keySet.map{ obs =>
             obs -> (

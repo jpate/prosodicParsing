@@ -1,5 +1,6 @@
 package ProsodicParsing.runners
 import ProsodicParsing.HMMs.PlainHMM
+import ProsodicParsing.HMMs.CoupledHMM
 import ProsodicParsing.types._
 
 object DevelopmentRunner {
@@ -107,4 +108,68 @@ object DevelopmentRunner {
   }
 }
 
+object CoupledDevelopmentRunner {
+  def main( args:Array[String]) {
+    import scala.math.log
+
+    val dataPath = args(0)
+
+    val hiddenStates =
+      Set( "S_0", "S_1", "S_2" ).flatMap{ x =>
+        Set( "P_1","P_2","P_3" ).map{ y =>
+          HiddenStatePair( x, y )
+        }
+      }
+
+    val trainingData = io.Source.fromFile( dataPath ).getLines().toList.map(
+      _.split(" ").toList.map{ w =>
+        val Array( word, prosody ) = w.split( "#")
+        ObservedStatePair( word, prosody )
+      }
+    )
+
+    val observationTypes =// Set( uttStart, uttEnd  ) ++
+      Set(
+        trainingData.flatten
+      ).flatten
+
+    println( trainingData )
+
+
+    val h = new CoupledHMM( hiddenStates, observationTypes )
+
+    println( h )
+
+    h.randomize( 10 )
+
+    println( h )
+
+
+    h.buildHMM( trainingData(0) )
+
+    h.buildSlicedHMM( trainingData(0) )
+
+    println( h.computePartialCounts(trainingData(0) ) )
+
+
+    println( "BEGINNING EM" )
+    var lastLogProb = 0D
+    var deltaLogProb = 1D
+    var n = 0
+    while( ( math.abs( deltaLogProb ) > 0.00001 | n < 30 ) & n < 100 ) {
+      val newLogProb = h.reestimate( trainingData )
+      deltaLogProb = ((newLogProb-lastLogProb)/lastLogProb)
+      println( n + ": " + newLogProb + " ("+  deltaLogProb + ")")
+      println( h )
+      lastLogProb = newLogProb
+      n += 1
+    }
+
+    println( "EM RESULTS IN: " )
+
+    println( h )
+
+
+  }
+}
 

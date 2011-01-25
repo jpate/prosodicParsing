@@ -203,6 +203,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
 
   def computePartialCounts( sequence:List[ObservedState] ) = {
+    val stringLogProb = generalProbability( sequence )
     buildSlicedHMM( sequence )
 
 
@@ -269,8 +270,6 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
                 thisTransitionCount
               )
             )
-
-
 
 
           emissionCounts(qFrom)(sequence(i)) = log_add(

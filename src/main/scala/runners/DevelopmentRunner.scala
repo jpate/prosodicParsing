@@ -156,7 +156,7 @@ object CoupledDevelopmentRunner {
     var lastLogProb = 0D
     var deltaLogProb = 1D
     var n = 0
-    while( ( math.abs( deltaLogProb ) > 0.00001 | n < 30 ) & n < 100 ) {
+    while( ( math.abs( deltaLogProb ) > 0.0000001 | n < 30 ) & n < 100 ) {
       val newLogProb = h.reestimate( trainingData )
       deltaLogProb = ((newLogProb-lastLogProb)/lastLogProb)
       println( n + ": " + newLogProb + " ("+  deltaLogProb + ")")

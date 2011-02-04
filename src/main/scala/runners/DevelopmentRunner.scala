@@ -126,41 +126,39 @@ object CoupledDevelopmentRunner {
         val Array( word, prosody ) = w.split( "#")
         ObservedStatePair( word, prosody )
       }
-    )
+    ).filter( _.size > 2 )
 
     val observationTypes =// Set( uttStart, uttEnd  ) ++
       Set(
         trainingData.flatten
       ).flatten
 
-    println( trainingData )
+    //println( trainingData )
 
 
     val h = new CoupledHMM( hiddenStates, observationTypes )
-
-    println( h )
-
     h.randomize( 10 )
 
-    println( h )
-
-
+    /*
     h.buildHMM( trainingData(0) )
 
     h.buildSlicedHMM( trainingData(0) )
+    */
 
+    println( "first computePartialCounts for: " + trainingData(0) )
     println( h.computePartialCounts(trainingData(0) ) )
+    println( "\n\n\n\ndone\n\n\n\n" )
 
 
     println( "BEGINNING EM" )
     var lastLogProb = 0D
     var deltaLogProb = 1D
     var n = 0
-    while( ( math.abs( deltaLogProb ) > 0.0000001 | n < 30 ) & n < 100 ) {
+    while( ( math.abs( deltaLogProb ) > 0.00001 ) & n < 100 ) {
       val newLogProb = h.reestimate( trainingData )
       deltaLogProb = ((newLogProb-lastLogProb)/lastLogProb)
       println( n + ": " + newLogProb + " ("+  deltaLogProb + ")")
-      println( h )
+      //println( h )
       lastLogProb = newLogProb
       n += 1
     }

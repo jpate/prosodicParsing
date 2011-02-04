@@ -4,7 +4,7 @@ import ProsodicParsing.types._
 import cc.mallet.types.LabelAlphabet
 import cc.mallet.grmm._
 import cc.mallet.grmm.types._
-import cc.mallet.grmm.inference.JunctionTreeInferencer
+import cc.mallet.grmm.inference.ForwardBackwardInferencer
 import scala.collection.immutable.{HashMap,HashSet}
 import scala.collection.mutable.{HashMap => MHashMap}
 
@@ -89,7 +89,8 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
   def buildSlicedHMM( tokens:List[ObservedState] ) {
     // clear hmm this way; hmm.clear() breaks something.
-    hmm = new DirectedModel()
+    //hmm = new DirectedModel()
+    hmm = new DynamicBayesNet(tokens.size)
 
 
     hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( hiddenStateAlphabet ) )
@@ -103,25 +104,27 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
 
     // initial states:
-    hmm.addFactor(
+    hmm.addHiddenTimedFactor(
       new CPT(
         new TableFactor(
           Array( hiddenVariables(0), hiddenVariables(1) ),
           (InitialStateProbabilities * TransitionMatrix ).toArray
         ),
         hiddenVariables(1)
-      )
+      ),
+      0
     )
     // state transitions
     ( 2 to (tokens.size-1) ) foreach{ i =>
-      hmm.addFactor(
+      hmm.addHiddenTimedFactor(
         new CPT(
           new TableFactor(
             Array( hiddenVariables(i-1), hiddenVariables(i) ),
               TransitionMatrix.toArray
           ),
           hiddenVariables(i)
-        )
+        ),
+        i-1
       )
     }
 
@@ -132,7 +135,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         observationAlphabet.lookupIndex( tokens(i) )
       )
 
-      hmm.addFactor(
+      hmm.addObservedTimedFactor(
         new CPT(
           new TableFactor(
             Array( hiddenVariables(i), observations(i) ),
@@ -140,14 +143,16 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
           ),
           observations(i),
           thisObservation
-        )
+        ),
+        i
       )
     }
   }
 
   def buildHMM( tokens:List[ObservedState] ) {
     // clear hmm this way; hmm.clear() breaks something.
-    hmm = new DirectedModel()
+    //hmm = new DirectedModel()
+    hmm = new DynamicBayesNet(tokens.size)
 
 
     hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( hiddenStateAlphabet ) )
@@ -160,38 +165,41 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     }
 
     // initial states:
-    hmm.addFactor(
+    hmm.addHiddenTimedFactor(
       new CPT(
         new TableFactor(
           Array( hiddenVariables(0), hiddenVariables(1) ),
           (InitialStateProbabilities * TransitionMatrix ).toArray
         ),
         hiddenVariables(1)
-      )
+      ),
+      0
     )
     // state transitions
     ( 2 to (tokens.size-1) ) foreach{ i =>
-      hmm.addFactor(
+      hmm.addHiddenTimedFactor(
         new CPT(
           new TableFactor(
             Array( hiddenVariables(i-1), hiddenVariables(i) ),
               TransitionMatrix.toArray
           ),
           hiddenVariables(i)
-        )
+        ),
+        i-1
       )
     }
 
     // emissions
     ( 0 to tokens.size-1 ) foreach { i =>
-      hmm.addFactor(
+      hmm.addObservedTimedFactor(
         new CPT(
           new TableFactor(
             Array( hiddenVariables(i), observations(i) ),
             EmissionMatrix.toArray
           ),
           observations(i)
-        )
+        ),
+        i
       )
     }
   }
@@ -207,7 +215,8 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     buildSlicedHMM( sequence )
 
 
-    val inferencer = new JunctionTreeInferencer()
+    val inferencer = new ForwardBackwardInferencer()
+    //println( "calling computeMarginals from within computePartialCounts directly" );
     inferencer.computeMarginals( hmm )
 
     val initialStateCounts = MHashMap(
@@ -743,7 +752,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
 
   def seeMarginals() {
-    val inferencer = new JunctionTreeInferencer()
+    val inferencer = new ForwardBackwardInferencer()
     inferencer.computeMarginals( hmm )
 
     hiddenVariables foreach ( someHiddenVar =>

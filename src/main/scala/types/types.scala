@@ -43,11 +43,21 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
       cpt.keySet.map( parent => parent -> (cpt(parent)).values.sum ).toSeq:_*
     )
 
+    val singleSupport = HashMap(
+      cpt.keySet.map( parent => parent -> (cpt(parent)).values.exists( _ == 1D ) ).toSeq:_*
+    )
+
     cpt = HashMap(
       cpt.keySet.map{ parent =>
         parent -> HashMap(
           cpt(parent).keySet.map{ child =>
-            child -> cpt(parent)(child) / maxes(parent)
+            if( singleSupport(parent) )
+              if( cpt(parent)(child) == 1D )
+                child -> 1D
+              else
+                child -> 0D
+            else
+              child -> cpt(parent)(child) / maxes(parent)
           }.toSeq:_*
         )
       }.toSeq:_*
@@ -132,52 +142,52 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
     cpt = updatedCPT
   }
 
-      // def normalize {
-      //   val maxes = HashMap(
-      //     cpt.keySet.map( parent => parent -> ( log_add( cpt(parent).values.toList ) ) ).toSeq:_*
-      //   )
-
-      //   val unimodal = HashMap(
-      //     cpt.keySet.map( parent =>
-      //       if( cpt(parent).values.exists( _ == 0D ) )
-      //         parent -> true
-      //       else
-      //         parent -> false
-      //     ).toSeq:_*
-      //   )
-
-      //   cpt = HashMap(
-      //     cpt.keySet.map{ parent =>
-      //       parent -> HashMap(
-      //         cpt(parent).keySet.map{ child =>
-      //           if( unimodal( parent ) )
-      //             if( cpt(parent)(child) == 0D )
-      //               child -> 0D
-      //             else
-      //               child -> Double.NegativeInfinity
-      //           else
-      //             child -> ( cpt(parent)(child) - maxes(parent) )
-      //         }.toSeq:_*
-      //       )
-      //     }.toSeq:_*
-      //   )
-      // }
-
   def normalize {
     val maxes = HashMap(
       cpt.keySet.map( parent => parent -> ( log_add( cpt(parent).values.toList ) ) ).toSeq:_*
+    )
+
+    val unimodal = HashMap(
+      cpt.keySet.map( parent =>
+        if( cpt(parent).values.exists( _ == 0D ) )
+          parent -> true
+        else
+          parent -> false
+      ).toSeq:_*
     )
 
     cpt = HashMap(
       cpt.keySet.map{ parent =>
         parent -> HashMap(
           cpt(parent).keySet.map{ child =>
-            child -> ( cpt(parent)(child) - maxes(parent) )
+            if( unimodal( parent ) )
+              if( cpt(parent)(child) == 0D )
+                child -> 0D
+              else
+                child -> Double.NegativeInfinity
+            else
+              child -> ( cpt(parent)(child) - maxes(parent) )
           }.toSeq:_*
         )
       }.toSeq:_*
     )
   }
+
+      // def normalize {
+      //   val maxes = HashMap(
+      //     cpt.keySet.map( parent => parent -> ( log_add( cpt(parent).values.toList ) ) ).toSeq:_*
+      //   )
+
+      //   cpt = HashMap(
+      //     cpt.keySet.map{ parent =>
+      //       parent -> HashMap(
+      //         cpt(parent).keySet.map{ child =>
+      //           child -> ( cpt(parent)(child) - maxes(parent) )
+      //         }.toSeq:_*
+      //       )
+      //     }.toSeq:_*
+      //   )
+      // }
 
   val seed = 15
   def randomize( centeredOn:Int ) {
@@ -305,12 +315,30 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
   def normalize {
     val max = log_add( pt.values.toList )
 
+    val singleSupport = pt.values.exists( _ == 0D )
+
     pt = HashMap(
       pt.keySet.map{ parent =>
-        parent -> ( pt(parent) - max )
+        if( singleSupport )
+          if( pt(parent) == 0D )
+            parent -> 0D
+          else
+            parent -> Double.NegativeInfinity
+        else
+          parent -> ( pt(parent) - max )
       }.toSeq:_*
     )
   }
+
+  // def normalize {
+  //   val max = log_add( pt.values.toList )
+
+  //   pt = HashMap(
+  //     pt.keySet.map{ parent =>
+  //       parent -> ( pt(parent) - max )
+  //     }.toSeq:_*
+  //   )
+  // }
 
   val seed = 15
   def randomize( centeredOn:Int ) {
@@ -474,9 +502,16 @@ case class CoupledHMMPartialCounts(
   emissionCountsB: HashMap[HiddenState,HashMap[ObservedState,Double]]
 ) extends PartialCounts
 
-case class GammaCsi(
-  stringProb:Double,
-  gamma:List[HashMap[HiddenState,Double]],
-  csi:List[HashMap[HiddenState,HashMap[HiddenState,Double]]]
-)
+
+abstract class Parameters
+
+case class CoupledHMMParameters(
+initialProbs:HashMap[HiddenStatePair,Double],
+transitionsA:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
+transitionsB:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
+emissionsA:HashMap[HiddenState,HashMap[ObservedState,Double]],
+emissionsB:HashMap[HiddenState,HashMap[ObservedState,Double]]
+) extends Parameters
+
+
 

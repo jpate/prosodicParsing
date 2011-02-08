@@ -1,40 +1,95 @@
+package ProsodicParsing.HMMs
 
-package prosodicParsing.HMMs
-import prosodicParsing.types._
-import collection.immutable.HashMap
+import ProsodicParsing.types._
+import cc.mallet.grmm.types._
+import cc.mallet.grmm.inference.ForwardBackwardInferencer
+import cc.mallet.grmm.util.Models
 
-abstract class AbstractHMM[Q<:AbstractHiddenState,O<:AbstractObservation,P<:AbstractHMMParameters] {
-  def randomHMM(
-    hiddenStates:Set[Q],
-    observations:Set[O],
-    randomSeed:Int,
-    centeredOn:Int
-  ):Unit
+abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
+  hiddenStateTypesSet:Set[HiddenType],
+  observationTypesSet:Set[ObservedType]
+) {
+  var parameters:Set[AbstractDistribution]
+  // val observationTypes:List[ObservedType]
+  // val hiddenStateTypes:List[HiddenType]
 
-  def viterbi( s:List[O] ):List[Q]
-  def computeExpectations( s:List[O] ):Expectation
+  val observationTypes = observationTypesSet.toList.sortWith( (a,b) => a < b )
+  val hiddenStateTypes = hiddenStateTypesSet.toList.sortWith( (a,b) => a < b )
 
-  def setParameters( newParams:P ):Unit
+  val numHiddenStates = hiddenStateTypes.size
 
+  def randomize( n:Int ) {
+    parameters.foreach( _.randomize( n ) )
+  }
+
+  def normalize {
+    parameters.foreach( _.normalize )
+  }
+
+  /*
+  def scale(n:Int) {
+    parameters.foreach( _.scale(n) )
+  }
+
+  def deScale(n:Int) {
+    parameters.foreach( _.deScale(n) )
+  }
+
+  val scaleBy = 1000
+  */
+
+  //var hmm = new DirectedModel()
+  var hmm = new DynamicBayesNet(0)
+
+  def buildSlicedHMM( tokens:List[ObservedType] ):Unit
+
+  def buildHMM( tokens:List[ObservedType] ):Unit
+
+  // translated from nltk
+  def log_add( ns:List[Double] ) = {
+    import math.{log,exp}
+    val maxVal = ns.max
+    if( maxVal > scala.Double.NegativeInfinity )
+      maxVal + log( ns.foldLeft(0D)( (a,b) => a + exp( b - maxVal ) ) )
+    else
+      maxVal
+  }
+
+  var observations:Array[Variable] = Array()
+  var hiddenVariables:Array[Variable] = Array()
+
+  def generateObservationSequence( tokens:List[ObservedType] ):Assignment
+
+  val inferencer = new ForwardBackwardInferencer()
+  def generalProbability( tokens:List[ObservedType] ) = {
+    buildHMM( tokens )
+
+
+    val observationSequence = generateObservationSequence( tokens )
+
+    //println( "shazam" )
+    inferencer.queryLogForwardBackward( hmm, observationSequence )
+  }
+
+  def computePartialCounts( sequence:List[ObservedType] ):PartialCounts
+
+  //def viterbi( sequence:List[ObservedType] ):List[HiddenType]
+
+  //def hiddenIndexToLabel( index:Int ):HiddenType
+  def assignmentToViterbiString( maxAssn:Assignment ):List[HiddenType]
+
+  var stringLength = 0
+
+  def argmax( corpus:List[List[ObservedType]] ) =
+    corpus.map{ string =>
+      buildSlicedHMM( string )
+      val maxAssn = Models.viterbi( hmm,  ForwardBackwardInferencer.createForMaxProduct() )
+      assignmentToViterbiString( maxAssn )
+      //hiddenVariables.map{ hiddVar =>
+      //  hiddenIndexToLabel( maxAssn.get( hiddVar ) )
+      //}
+    }
+
+  def reestimate( corpus: List[List[ObservedType]] ):Double
 }
-
-abstract class AbstractHMMParameters
-
-/*
-class PlainHMMParameters extends AbstractHMMParameters {
-
-  def setInitialStateProbs( newInitialProbs:HashMap[HiddenState,Double] ) {
-    initialStateProbs = newInitialProbs
-  }
-
-  def setTransitions( newTransitions:HashMap[HiddenState,HashMap[HiddenState,Double]] ) {
-    transitions = newTransitions
-  }
-
-  def setEmissions( newObservations:HashMap[HiddenState,HashMap[Observation,Double]] ) {
-    emissions = newObservations
-  }
-
-}
-*/
 

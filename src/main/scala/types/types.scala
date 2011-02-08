@@ -4,6 +4,7 @@ import math.{exp,log}
 
 
 abstract class Label(s:String) {
+
   // THIS IS NECESSARY TO GET A PREDICTABLE SORT SO THAT toArray IS STABLE
   override def toString = s
 
@@ -19,8 +20,12 @@ case class HiddenState(s:String) extends HiddenLabel(s) {
 }
 case class ObservedState(s:String) extends ObservedLabel(s)
 
-case class HiddenStatePair( hidd1:String, hidd2:String ) extends HiddenLabel( hidd1+"^"+hidd2 )
-case class ObservedStatePair( obs1:String, obs2:String ) extends ObservedLabel( obs1+"^"+obs2 )
+trait StatePair
+
+case class HiddenStatePair( hidd1:String, hidd2:String )
+  extends HiddenLabel( hidd1+"^"+hidd2 ) with StatePair
+case class ObservedStatePair( obs1:String, obs2:String )
+  extends ObservedLabel( obs1+"^"+obs2 ) with StatePair
 
 abstract class AbstractDistribution {
   def randomize(n:Int):Unit
@@ -43,21 +48,11 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
       cpt.keySet.map( parent => parent -> (cpt(parent)).values.sum ).toSeq:_*
     )
 
-    val singleSupport = HashMap(
-      cpt.keySet.map( parent => parent -> (cpt(parent)).values.exists( _ == 1D ) ).toSeq:_*
-    )
-
     cpt = HashMap(
       cpt.keySet.map{ parent =>
         parent -> HashMap(
           cpt(parent).keySet.map{ child =>
-            if( singleSupport(parent) )
-              if( cpt(parent)(child) == 1D )
-                child -> 1D
-              else
-                child -> 0D
-            else
-              child -> cpt(parent)(child) / maxes(parent)
+            child -> cpt(parent)(child) / maxes(parent)
           }.toSeq:_*
         )
       }.toSeq:_*
@@ -147,47 +142,16 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
       cpt.keySet.map( parent => parent -> ( log_add( cpt(parent).values.toList ) ) ).toSeq:_*
     )
 
-    val unimodal = HashMap(
-      cpt.keySet.map( parent =>
-        if( cpt(parent).values.exists( _ == 0D ) )
-          parent -> true
-        else
-          parent -> false
-      ).toSeq:_*
-    )
-
     cpt = HashMap(
       cpt.keySet.map{ parent =>
         parent -> HashMap(
           cpt(parent).keySet.map{ child =>
-            if( unimodal( parent ) )
-              if( cpt(parent)(child) == 0D )
-                child -> 0D
-              else
-                child -> Double.NegativeInfinity
-            else
-              child -> ( cpt(parent)(child) - maxes(parent) )
+            child -> ( cpt(parent)(child) - maxes(parent) )
           }.toSeq:_*
         )
       }.toSeq:_*
     )
   }
-
-      // def normalize {
-      //   val maxes = HashMap(
-      //     cpt.keySet.map( parent => parent -> ( log_add( cpt(parent).values.toList ) ) ).toSeq:_*
-      //   )
-
-      //   cpt = HashMap(
-      //     cpt.keySet.map{ parent =>
-      //       parent -> HashMap(
-      //         cpt(parent).keySet.map{ child =>
-      //           child -> ( cpt(parent)(child) - maxes(parent) )
-      //         }.toSeq:_*
-      //       )
-      //     }.toSeq:_*
-      //   )
-      // }
 
   val seed = 15
   def randomize( centeredOn:Int ) {
@@ -198,7 +162,7 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
       cpt.keySet.map{ parent =>
         parent -> HashMap(
           cpt(parent).keySet.map{ child =>
-            child -> ( log( r.nextDouble + centeredOn ) + log( 10000 ) )
+            child -> ( log( r.nextDouble + centeredOn ) )
           }.toSeq:_*
         )
       }.toSeq:_*
@@ -249,6 +213,7 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
 }
 
 abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution {
+  //protected[this] var pt:HashMap[T,Double]
   var pt:HashMap[T,Double]
 
   def setPT( updatedPT: HashMap[T,Double] ) {
@@ -267,6 +232,38 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
         }.toSeq:_*
       )
     }
+
+      // // UGLY UGLY HACK BAD JOHN
+      // def *( otherPT: LogProbabilityDistribution[T] ) = {
+      //   //println( keySet )
+      //   //println( "=====" )
+      //   val crossProductTypes = keySet.flatMap{ p1 =>
+      //     otherPT.keySet.map{ p2 =>
+      //       HiddenStatePair( p1.toString, p2.toString )
+      //     }
+      //   }
+      // 
+      //     val crossProduct = new LogProbabilityDistribution[HiddenStatePair] {
+      //       var pt = HashMap(
+      //         crossProductTypes.map( thisStateName =>
+      //           thisStateName -> 1D/crossProductTypes.size
+      //         ).toSeq: _*
+      //       )
+      //     }
+      // 
+      //     val newPT = HashMap(
+      //       keySet.flatMap{ parent1 =>
+      //         otherPT.keySet.map{ parent2 =>
+      //           //println( HiddenStatePair( parent1.toString, parent2.toString ) )
+      //           HiddenStatePair( parent1.toString, parent2.toString ) -> ( apply( parent1 ) + otherPT( parent2 ) )
+      //         }
+      //       }.toSeq:_*
+      //     )
+      //     crossProduct.setPT( newPT )
+      //     crossProduct
+      //   }
+
+  def keySet = pt.keySet
 
   def *[U<:Label]( otherCPT: ConditionalProbabilityDistribution[T,U] ) =
     new ConditionalProbabilityDistribution[T,U] {
@@ -315,16 +312,16 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
   def normalize {
     val max = log_add( pt.values.toList )
 
-    val singleSupport = pt.values.exists( _ == 0D )
+    //val singleSupport = pt.values.exists( _ == 0D )
 
     pt = HashMap(
       pt.keySet.map{ parent =>
-        if( singleSupport )
-          if( pt(parent) == 0D )
-            parent -> 0D
-          else
-            parent -> Double.NegativeInfinity
-        else
+        //if( singleSupport )
+        //  if( pt(parent) == 0D )
+        //    parent -> 0D
+        //  else
+        //    parent -> Double.NegativeInfinity
+        //else
           parent -> ( pt(parent) - max )
       }.toSeq:_*
     )
@@ -347,7 +344,7 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
 
     pt = HashMap(
       pt.keySet.map{ parent =>
-        parent ->  ( log( r.nextDouble + centeredOn ) + log( 10000 ) )
+        parent ->  ( log( r.nextDouble + centeredOn ) )
       }.toSeq:_*
     )
 
@@ -496,6 +493,7 @@ case class CoupledHMMPartialCounts(
   stringProb: Double,
   //stateCounts: HashMap[HiddenState,Double],
   initialStateCounts: HashMap[HiddenStatePair,Double],
+  //initialStateCountsB: HashMap[HiddenState,Double],
   transitionCountsA: HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
   transitionCountsB: HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
   emissionCountsA: HashMap[HiddenState,HashMap[ObservedState,Double]],
@@ -507,6 +505,7 @@ abstract class Parameters
 
 case class CoupledHMMParameters(
 initialProbs:HashMap[HiddenStatePair,Double],
+//initialProbsB:HashMap[HiddenState,Double],
 transitionsA:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
 transitionsB:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
 emissionsA:HashMap[HiddenState,HashMap[ObservedState,Double]],

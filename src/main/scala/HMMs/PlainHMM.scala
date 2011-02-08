@@ -5,6 +5,8 @@ import cc.mallet.types.LabelAlphabet
 import cc.mallet.grmm._
 import cc.mallet.grmm.types._
 import cc.mallet.grmm.inference.ForwardBackwardInferencer
+import cc.mallet.grmm.inference.JunctionTreeInferencer
+import cc.mallet.grmm.inference.JunctionTreeInferencer._
 import scala.collection.immutable.{HashMap,HashSet}
 import scala.collection.mutable.{HashMap => MHashMap}
 
@@ -15,8 +17,18 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
   val hiddenStateAlphabet = new LabelAlphabet()
 
   observationTypes.foreach( observationAlphabet.lookupIndex( _, true ) )
-  hiddenStateTypes.foreach( hiddenStateAlphabet.lookupIndex( _, true ) )
 
+  val hiddenStateIndexToLabel = new MHashMap[Int,HiddenState]
+  hiddenStateTypes.foreach( q =>
+    hiddenStateIndexToLabel( hiddenStateAlphabet.lookupIndex( q, true ) ) = q
+  )
+
+  //def hiddenIndexToLabel( index:Int ) = hiddenStateIndexToLabel( index )
+
+  def assignmentToViterbiString( maxAssn:Assignment ) =
+    hiddenVariables.map{ hiddenVar =>
+      hiddenStateIndexToLabel( maxAssn.get( hiddenVar ) )
+    }.toList
 
 
   object TransitionMatrix extends ConditionalProbabilityDistribution[HiddenState,HiddenState] {
@@ -288,7 +300,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
             )
           )
 
-          if( i ==  (hiddenVariables.size-2) ) {
+          if( i == (hiddenVariables.size-2) ) {
             emissionCounts(qTo)(sequence(i+1)) = log_add(
               List(
                 emissionCounts(qTo)(sequence(i+1)),
@@ -501,7 +513,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
           corpusTransitionCounts(qFrom)(qTo) = log_add(
             List(
               corpusTransitionCounts(qFrom)(qTo),
-              stringTransitionCounts(qFrom)(qTo) //- stringLogProb
+              stringTransitionCounts(qFrom)(qTo) - stringLogProb
             )
           )
         }
@@ -514,7 +526,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         corpusTransitionDenominator(qFrom) = log_add(
           List(
             corpusTransitionDenominator(qFrom),
-            stringTransitionDenominator(qFrom) //- stringLogProb
+            stringTransitionDenominator(qFrom) - stringLogProb
           )
         )
         stringEmissionCounts(qFrom).keySet.foreach{ obs =>
@@ -645,7 +657,72 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
   }
 
 
-  def viterbi( s: List[ObservedState] ) = {
+  def argMaxUsingCreateForMaxProduct( s: List[ObservedState] ) = {
+    val inferencer = JunctionTreeInferencer.createForMaxProduct()
+    inferencer.computeMarginals( hmm )
+    hiddenVariables foreach ( someHiddenVar =>
+      println( inferencer.lookupMarginal( someHiddenVar ).dumpToString() )
+    )
+  }
+
+  def viterbi( string:List[ObservedState] ) = {
+    def argmax( h:HashMap[HiddenState,Double] ):HiddenState =
+      h.keySet.reduceLeft{ (p, q) => if( h(p) > h(q) ) p else q }
+
+    //initialize deltas
+    var lastDelta = HashMap(
+      hiddenStateTypes.map{ q =>
+        q -> InitialStateProbabilities(q) * EmissionMatrix(q)(string.head)
+      }.toSeq:_*
+    )
+
+    //println( "simple argmax at w = "+string.head+": " + argmax( lastDelta ) )
+
+    var psis = new Array[HashMap[HiddenState,HiddenState]](0)
+    (string.tail) foreach { w =>
+      // Keep track of best ways to get wherever we want to go
+      psis = psis ++ Array(
+        HashMap(
+          hiddenStateTypes.map{ qTo =>
+            // For each state, record the best way to get to that state.
+            qTo -> argmax(
+              HashMap(
+                hiddenStateTypes.map{ qFrom =>
+                  qFrom -> TransitionMatrix(qFrom)(qTo) * lastDelta(qFrom)
+                }.toSeq:_*
+              )
+            )
+          }.toSeq:_*
+        )
+      )
+
+
+      // update deltas
+      lastDelta = HashMap(
+        hiddenStateTypes.map{ qTo =>
+          qTo -> (
+            hiddenStateTypes.map{ qFrom =>
+              lastDelta(qFrom) * TransitionMatrix(qFrom)(qTo)
+            }
+          ).max * EmissionMatrix(qTo)(w)
+        }.toSeq:_*
+      )
+      println( "simple argmax at w = "+w+": " + argmax( lastDelta ) )
+    }
+
+    val bestLastState = argmax( lastDelta )
+
+    var bestPath = Array[HiddenState]( bestLastState )
+    (psis reverse).foreach{ psi =>
+      bestPath = Array(
+        psi(bestPath head)
+      ) ++ bestPath
+    }
+
+    bestPath
+  }
+
+  def viterbi_old( s: List[ObservedState] ) = {
     def argmax( h:HashMap[HiddenState,Double] ):HiddenState =
       h.keySet.reduceLeft{ (p, q) => if( h(p) > h(q) ) p else q }
 
@@ -750,6 +827,15 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     forwardPass( allObservations ).values.sum
   }
 
+  def marginalsForString( string:List[ObservedState] ) {
+    buildSlicedHMM( string )
+    val inferencer = new ForwardBackwardInferencer()
+    inferencer.computeMarginals( hmm )
+
+    hiddenVariables foreach ( someHiddenVar =>
+      println( inferencer.lookupMarginal( someHiddenVar ).dumpToString() )
+    )
+  }
 
   def seeMarginals() {
     val inferencer = new ForwardBackwardInferencer()

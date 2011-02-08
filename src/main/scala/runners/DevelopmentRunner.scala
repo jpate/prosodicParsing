@@ -40,6 +40,15 @@ object DevelopmentRunner {
     println( h )
 
     println( trainingData( 0 ) )
+
+    println( "argmax" )
+    println( h.argmax( trainingData(0)::Nil ) )
+    println( "viterbi" )
+    println( h.viterbi( trainingData(0) ).mkString(""," ",".") )
+    println( "argMaxUsingCreateForMaxProduct" )
+    println( h.argMaxUsingCreateForMaxProduct( trainingData(0) ) )
+    println( "marginalsForString" )
+    println( h.marginalsForString( trainingData(0) ) )
     //var lastProb = log( h.generalProbability( trainingData(0) ) ) + log( h.generalProbability(
     //var lastProb = trainingData.map{ s => log( h.generalProbability( s ) ) }.sum
     //trainingData(1)))
@@ -48,6 +57,7 @@ object DevelopmentRunner {
     var lastProb = 0D
     var deltaLogProb = 1D
     var n = 0
+    /*
     while( math.abs( deltaLogProb ) > 0.00001 & n < 100 ) {
       //print( n + ":  " )
 
@@ -76,6 +86,7 @@ object DevelopmentRunner {
       n = n + 1
       // lastGenProb = generalProb
     }
+    */
 
     println( n + ":   " + h.generalProbability( trainingData last ) )
 
@@ -139,15 +150,23 @@ object CoupledDevelopmentRunner {
     val h = new CoupledHMM( hiddenStates, observationTypes )
     h.randomize( 10 )
 
+    println( "Hidden States:" )
+    println( hiddenStates.mkString("","\n","\n\n" ) )
+
+    println( "Observed Types:" )
+    println( observationTypes.mkString("","\n","\n\n" ) )
+
     /*
     h.buildHMM( trainingData(0) )
 
     h.buildSlicedHMM( trainingData(0) )
     */
 
+    /*
     println( "first computePartialCounts for: " + trainingData(0) )
     println( h.computePartialCounts(trainingData(0) ) )
     println( "\n\n\n\ndone\n\n\n\n" )
+    */
 
 
     println( "BEGINNING EM" )
@@ -158,8 +177,14 @@ object CoupledDevelopmentRunner {
       val newLogProb = h.reestimate( trainingData )
       deltaLogProb = ((newLogProb-lastLogProb)/lastLogProb)
       println( n + ": " + newLogProb + " ("+  deltaLogProb + ")")
-      //println( h )
+      println( h )
       lastLogProb = newLogProb
+      /*
+      if( n % 5 == 0 ) 
+        println(
+          h.argmax( trainingData ).map{_.mkString(""," ",".")}.mkString("\t","\n\t","\n")
+        )
+      */
       n += 1
     }
 
@@ -167,6 +192,7 @@ object CoupledDevelopmentRunner {
 
     println( h )
 
+    h.argmax( trainingData ).map{_.mkString(""," ",".")}.mkString("\t","\n\t","\n")
 
   }
 }

@@ -3,6 +3,7 @@ package ProsodicParsing.HMMs
 import ProsodicParsing.types._
 import cc.mallet.grmm.types._
 import cc.mallet.grmm.inference.ForwardBackwardInferencer
+import cc.mallet.grmm.util.Models
 
 abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
   hiddenStateTypesSet:Set[HiddenType],
@@ -25,6 +26,7 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
     parameters.foreach( _.normalize )
   }
 
+  /*
   def scale(n:Int) {
     parameters.foreach( _.scale(n) )
   }
@@ -34,6 +36,7 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
   }
 
   val scaleBy = 1000
+  */
 
   //var hmm = new DirectedModel()
   var hmm = new DynamicBayesNet(0)
@@ -70,7 +73,22 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
 
   def computePartialCounts( sequence:List[ObservedType] ):PartialCounts
 
-  def viterbi( sequence:List[ObservedType] ):List[HiddenType]
+  //def viterbi( sequence:List[ObservedType] ):List[HiddenType]
+
+  //def hiddenIndexToLabel( index:Int ):HiddenType
+  def assignmentToViterbiString( maxAssn:Assignment ):List[HiddenType]
+
+  var stringLength = 0
+
+  def argmax( corpus:List[List[ObservedType]] ) =
+    corpus.map{ string =>
+      buildSlicedHMM( string )
+      val maxAssn = Models.viterbi( hmm,  ForwardBackwardInferencer.createForMaxProduct() )
+      assignmentToViterbiString( maxAssn )
+      //hiddenVariables.map{ hiddVar =>
+      //  hiddenIndexToLabel( maxAssn.get( hiddVar ) )
+      //}
+    }
 
   def reestimate( corpus: List[List[ObservedType]] ):Double
 }

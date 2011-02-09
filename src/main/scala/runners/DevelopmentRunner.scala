@@ -3,6 +3,7 @@ import ProsodicParsing.HMMs.PlainHMM
 import ProsodicParsing.HMMs.CoupledHMM
 import ProsodicParsing.HMMs.HMMMaster
 import ProsodicParsing.HMMs.HMMActor
+import ProsodicParsing.HMMs.EvaluatingMaster
 import ProsodicParsing.types._
 
 object DevelopmentRunner {
@@ -43,14 +44,14 @@ object DevelopmentRunner {
 
     println( trainingData( 0 ) )
 
-    println( "argmax" )
-    println( h.argmax( trainingData(0)::Nil ) )
-    println( "viterbi" )
-    println( h.viterbi( trainingData(0) ).mkString(""," ",".") )
-    println( "argMaxUsingCreateForMaxProduct" )
-    println( h.argMaxUsingCreateForMaxProduct( trainingData(0) ) )
-    println( "marginalsForString" )
-    println( h.marginalsForString( trainingData(0) ) )
+    //println( "argmax" )
+    //println( h.argmax( trainingData(0) ) )
+    //println( "viterbi" )
+    //println( h.viterbi( trainingData(0) ).mkString(""," ",".") )
+    //println( "argMaxUsingCreateForMaxProduct" )
+    //println( h.argMaxUsingCreateForMaxProduct( trainingData(0) ) )
+    //println( "marginalsForString" )
+    //println( h.marginalsForString( trainingData(0) ) )
     //var lastProb = log( h.generalProbability( trainingData(0) ) ) + log( h.generalProbability(
     //var lastProb = trainingData.map{ s => log( h.generalProbability( s ) ) }.sum
     //trainingData(1)))
@@ -194,7 +195,7 @@ object CoupledDevelopmentRunner {
 
     println( h )
 
-    h.argmax( trainingData ).map{_.mkString(""," ",".")}.mkString("\t","\n\t","\n")
+    //trainingData.map( s =>  h.argmax(s).mkString(""," ",".")).mkString("\t","\n\t","\n")
 
   }
 }
@@ -204,6 +205,7 @@ object ActorsDevelopmentRunner {
     import scala.math.log
 
     val dataPath = args(0)
+    val testDataPath = args(1)
 
     val hiddenStates =
       Set( "S_0", "S_1", "S_2" ).flatMap{ x =>
@@ -219,17 +221,34 @@ object ActorsDevelopmentRunner {
       }
     ).filter( _.size > 2 )
 
+    val testCorpus = io.Source.fromFile( testDataPath ).getLines().toList.map{ rawString =>
+      val tokenized = rawString.split(" ").toList
+      ViterbiString(
+        tokenized.head,
+        tokenized.tail.map{ w =>
+          val Array( word, prosody ) = w.split( "#" )
+          ObservedStatePair( word, prosody )
+        }
+      )
+    }.filter{ _.size > 2 }
+
     val observationTypes = Set( corpus.flatten).flatten.toSet
 
     object Manager
       extends CoupledHMM(hiddenStates,observationTypes)
-      with HMMMaster[HiddenStatePair,ObservedStatePair] {
+      with HMMMaster[HiddenStatePair,ObservedStatePair]
+      with EvaluatingMaster[HiddenStatePair,ObservedStatePair] {
       val trainingData = corpus
       var hmms = List[HMMActor[HiddenStatePair,ObservedStatePair]](
         new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
         new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
         new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair]
       )
+
+      val viterbiHMM = new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair]
+
+      val frequency = 4
+      val testSet = testCorpus
 
       def converged( iterations:Int, deltaLogProb:Double ) =
         iterations > 100 || ( math.abs( deltaLogProb ) < 0.00001 && iterations > 15 )
@@ -239,7 +258,6 @@ object ActorsDevelopmentRunner {
     println( "Starting HMM: ")
     //println( Manager )
     Manager.start()
-
   }
 }
 

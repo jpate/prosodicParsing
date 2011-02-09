@@ -8,7 +8,7 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
   def setParams( params:Parameters ):Unit
   def computePartialCounts( s:List[O] ):PartialCounts
-  def argmax( corpus:List[List[O]] ):List[List[Q]]
+  def argmax( corpus:List[O] ):List[Q]
   def normalize:Unit
 
 
@@ -29,8 +29,13 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
           //println( "Got an utterance: " + utt )
           reply( computePartialCounts(utt) )
         }
-        case Viterbi( corpus:List[List[O]] ) => {
-          reply( argmax( corpus ) )
+        case Viterbi( iteration, corpus ) => {
+          corpus.foreach{ case ViterbiString(label, string:List[O] ) =>
+            //val ViterbiString( label, string ) = vit
+            println( "it"+iteration + "," + label + "," + argmax( string ).mkString(""," ","") )
+          }
+          //println( argmax(corpus).map{_.mkString(""," ","")} )
+          //reply( argmax( corpus ) )
         }
         case Stop => exit()
       }

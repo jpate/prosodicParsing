@@ -58,12 +58,18 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
 
   var stringLength = 0
 
-  def argmax( corpus:List[List[ObservedType]] ) =
-    corpus.map{ string =>
-      buildSlicedHMM( string )
-      val maxAssn = Models.viterbi( hmm,  ForwardBackwardInferencer.createForMaxProduct() )
-      assignmentToViterbiString( maxAssn )
-    }
+  def argmax( string:List[ObservedType] ) = {
+    buildSlicedHMM( string )
+    val maxAssn = Models.viterbi( hmm,  ForwardBackwardInferencer.createForMaxProduct() )
+    assignmentToViterbiString( maxAssn )
+  }
+
+  // def argmax( corpus:List[List[ObservedType]] ) =
+  //   corpus.map{ string =>
+  //     buildSlicedHMM( string )
+  //     val maxAssn = Models.viterbi( hmm,  ForwardBackwardInferencer.createForMaxProduct() )
+  //     assignmentToViterbiString( maxAssn )
+  //   }
 
   def reestimate( corpus: List[List[ObservedType]] ):Double
 }

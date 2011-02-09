@@ -31,25 +31,23 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
   def normalize:Unit
 
   def iterationStart {
-    //println( "Starting iteration: " + iterationCount)
-    //println( "At the start of this iteration, I am:\n" + toString )
     toSend = trainingData
     sent = Nil
     received = 0
 
     summingPartialCounts = initialPartialCounts
 
-    //println ( "head slave hmm is:\n"+hmms.head+"\n\n\n" )
-
     hmms.foreach{ hmm =>
-      //hmm ! parameters
       hmm ! packageParameters
       val thisUtt = toSend.head
       toSend = toSend.tail
       hmm ! EstimateUtterance( thisUtt )
       sent = thisUtt :: sent
     }
-    //println ( "head slave hmm is now:\n"+hmms.head+"\n\n\n" )
+  }
+
+  def emEnd {
+    exit()
   }
 
   def iterationEnd {
@@ -57,29 +55,27 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
     val corpusLogProb = summingPartialCounts.logProb
 
-    //println( "Final summingPartialCounts are : " + summingPartialCounts )
     setParams( summingPartialCounts.toParameters )
     normalize
-
-    //println( "At the end of this iteration, I am:\n" + toString )
-
-    //hmms.foreach( _ ! summingPartialCounts.toParameters )
 
     val deltaLogProb = (corpusLogProb - lastCorpusLogProb)/lastCorpusLogProb
     println( "iteration " + iterationCount + ": " + corpusLogProb+ " (" + deltaLogProb +")" )
     if( converged( iterationCount, deltaLogProb ) ) {
       println( "EM Done! final HMM:\n\n" + toString )
       hmms.foreach( _ ! Stop )
-      exit()
+      emEnd
+      //exit()
     } else {
       lastCorpusLogProb = corpusLogProb
       iterationStart
     }
   }
 
+  def emInit = ()
+
   def act() {
+    emInit
     toSend = trainingData
-    //var sent:List[List[ObservedLabel]] = Nil
     received = 0
 
     hmms.foreach(_.start)
@@ -89,8 +85,6 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       react {
         case pc:PartialCounts => {
           summingPartialCounts = summingPartialCounts + pc
-          //println( "Partial Counts are " + pc )
-          //println( "total partial counts so far are: " +summingPartialCounts + "\n" )
           received += 1
           if( received == sent.size && toSend.isEmpty ) {
             iterationEnd
@@ -99,9 +93,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
               val nextUtt = toSend.head
               toSend = toSend.tail
               reply( EstimateUtterance( nextUtt ) )
-              //println( "sent had " + sent.size + " sentences" )
               sent = nextUtt :: sent
-              //println( "sent now has  " + sent.size + " sentences" )
             }
           }
         }
@@ -110,3 +102,54 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
   }
 }
 
+
+trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
+  val viterbiHMM:HMMActor[Q,O]
+
+  override def emInit = viterbiHMM.start()
+
+  val frequency:Int
+  val testSet:List[ViterbiString]
+  var iterationCount:Int
+  var hmms:List[HMMActor[Q,O]]
+
+  var summingPartialCounts:PartialCounts
+  def setParams( params:Parameters )
+  def normalize:Unit
+  def converged(iterationNum:Int, deltaLogProb:Double):Boolean
+  def iterationStart:Unit
+
+  def packageParameters:Parameters
+
+  override def emEnd {
+    viterbiHMM ! packageParameters
+    viterbiHMM ! testSet
+    viterbiHMM ! Stop
+    exit
+  }
+
+  override def iterationEnd {
+    iterationCount += 1
+
+    if( iterationCount % frequency == 0 ) {
+      viterbiHMM ! summingPartialCounts.toParameters
+      viterbiHMM ! Viterbi( iterationCount, testSet )
+    }
+
+    val corpusLogProb = summingPartialCounts.logProb
+
+    setParams( summingPartialCounts.toParameters )
+    normalize
+
+    val deltaLogProb = (corpusLogProb - lastCorpusLogProb)/lastCorpusLogProb
+    println( "iteration " + iterationCount + ": " + corpusLogProb+ " (" + deltaLogProb +")" )
+    if( converged( iterationCount, deltaLogProb ) ) {
+      println( "EM Done! final HMM:\n\n" + toString )
+      hmms.foreach( _ ! Stop )
+      emEnd
+    } else {
+      lastCorpusLogProb = corpusLogProb
+      iterationStart
+    }
+  }
+}

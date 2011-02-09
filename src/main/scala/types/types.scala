@@ -617,6 +617,13 @@ emissions:HashMap[HiddenState,HashMap[ObservedState,Double]]
 abstract class Estimate
 case class EstimateCorpus( s:List[List[ObservedLabel]] ) extends Estimate
 case class EstimateUtterance( s:List[ObservedLabel] ) extends Estimate
-case class Viterbi( s:List[ObservedLabel] ) extends Estimate
+
+//case class Viterbi( s:List[ObservedLabel] ) extends Estimate
+
+case class ViterbiString( stringLabel:String, string:List[ObservedLabel] ) {
+  def size = string.size
+}
+
+case class Viterbi( iterationCount:Int, vit:List[ViterbiString] )
 
 

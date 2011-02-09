@@ -13,7 +13,9 @@ abstract class AbstractObservation(s:String) extends Letter(s)
 case class HiddenState(s:String) extends AbstractHiddenState(s)
 case class Observation(s:String) extends AbstractObservation(s)
 
-case class Estimate( s:List[AbstractObservation] )
-case class Viterbi( s:List[AbstractObservation] )
+abstract class Estimate
+case class EstimateCorpus( s:List[List[AbstractObservation]] ) extends Estimate
+case class EstimateUtterance( s:List[AbstractObservation] ) extends Estimate
+case class Viterbi( s:List[AbstractObservation] ) extends Estimate
 
 

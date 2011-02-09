@@ -1,10 +1,10 @@
 package ProsodicParsing.types
 import scala.collection.immutable.HashMap
+import ProsodicParsing.util.Util
 import math.{exp,log}
 
 
 abstract class Label(s:String) {
-
   // THIS IS NECESSARY TO GET A PREDICTABLE SORT SO THAT toArray IS STABLE
   override def toString = s
 
@@ -120,14 +120,6 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
 
 abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
   import math.{exp,log}
-  // translated from nltk
-  def log_add( ns:List[Double] ) = {
-    val maxVal = ns.max
-    if( maxVal > scala.Double.NegativeInfinity )
-      maxVal + log( ns.foldLeft(0D)( (a,b) => a + exp( b - maxVal ) ) )
-    else
-      maxVal
-  }
 
   var cpt:HashMap[T,HashMap[U,Double]]
 
@@ -139,7 +131,7 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
 
   def normalize {
     val maxes = HashMap(
-      cpt.keySet.map( parent => parent -> ( log_add( cpt(parent).values.toList ) ) ).toSeq:_*
+      cpt.keySet.map( parent => parent -> ( Util.log_add( cpt(parent).values.toList ) ) ).toSeq:_*
     )
 
     cpt = HashMap(
@@ -233,36 +225,6 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
       )
     }
 
-      // // UGLY UGLY HACK BAD JOHN
-      // def *( otherPT: LogProbabilityDistribution[T] ) = {
-      //   //println( keySet )
-      //   //println( "=====" )
-      //   val crossProductTypes = keySet.flatMap{ p1 =>
-      //     otherPT.keySet.map{ p2 =>
-      //       HiddenStatePair( p1.toString, p2.toString )
-      //     }
-      //   }
-      // 
-      //     val crossProduct = new LogProbabilityDistribution[HiddenStatePair] {
-      //       var pt = HashMap(
-      //         crossProductTypes.map( thisStateName =>
-      //           thisStateName -> 1D/crossProductTypes.size
-      //         ).toSeq: _*
-      //       )
-      //     }
-      // 
-      //     val newPT = HashMap(
-      //       keySet.flatMap{ parent1 =>
-      //         otherPT.keySet.map{ parent2 =>
-      //           //println( HiddenStatePair( parent1.toString, parent2.toString ) )
-      //           HiddenStatePair( parent1.toString, parent2.toString ) -> ( apply( parent1 ) + otherPT( parent2 ) )
-      //         }
-      //       }.toSeq:_*
-      //     )
-      //     crossProduct.setPT( newPT )
-      //     crossProduct
-      //   }
-
   def keySet = pt.keySet
 
   def *[U<:Label]( otherCPT: ConditionalProbabilityDistribution[T,U] ) =
@@ -300,17 +262,9 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
 
   def domain = pt.keySet
 
-  // translated from nltk
-  def log_add( ns:List[Double] ) = {
-    val maxVal = ns.max
-    if( maxVal > scala.Double.NegativeInfinity )
-      maxVal + log( ns.foldLeft(0D)( (a,b) => a + exp( b - maxVal ) ) )
-    else
-      maxVal
-  }
 
   def normalize {
-    val max = log_add( pt.values.toList )
+    val max = Util.log_add( pt.values.toList )
 
     //val singleSupport = pt.values.exists( _ == 0D )
 
@@ -328,7 +282,7 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
   }
 
   // def normalize {
-  //   val max = log_add( pt.values.toList )
+  //   val max = Util.log_add( pt.values.toList )
 
   //   pt = HashMap(
   //     pt.keySet.map{ parent =>
@@ -480,37 +434,189 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
 }
 
 
-abstract class PartialCounts
+abstract class PartialCounts {
+  def +( otherPC:PartialCounts ):PartialCounts
+  def toParameters:Parameters
+  val logProb:Double
+}
 
 case class PlainHMMPartialCounts(
-  stringProb: Double,
-  stateCounts: HashMap[HiddenState,Double],
+  stringLogProb: Double,
+  initialStateCounts: HashMap[HiddenState,Double],
   transitionCounts: HashMap[HiddenState,HashMap[HiddenState,Double]],
   emissionCounts: HashMap[HiddenState,HashMap[ObservedState,Double]]
-) extends PartialCounts
+) extends PartialCounts {
+  val logProb = stringLogProb
+  def +( otherPC: PartialCounts ) = {
+    val PlainHMMPartialCounts(
+      otherStringLogProb,
+      otherInitialStateCounts,
+      otherTransitionCounts,
+      otherEmissionCounts
+    ) = otherPC
+
+    PlainHMMPartialCounts(
+      stringLogProb + otherStringLogProb,
+      HashMap(
+        initialStateCounts.keySet.map{ q =>
+          q -> Util.log_add(
+            List( initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb )
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        transitionCounts.keySet.map{ qFrom =>
+          qFrom -> HashMap(
+            transitionCounts(qFrom).keySet.map{ qTo =>
+              qTo -> Util.log_add(
+                List(
+                  transitionCounts(qFrom)(qTo),
+                  otherTransitionCounts(qFrom)(qTo) - otherStringLogProb
+                )
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        emissionCounts.keySet.map{ q =>
+          q -> HashMap(
+            emissionCounts(q).keySet.map{ obs =>
+              obs -> Util.log_add(
+                List( emissionCounts(q)(obs),
+                  otherEmissionCounts(q)(obs) - otherStringLogProb
+                )
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      )
+    )
+  }
+
+  def toParameters = PlainHMMParameters(
+    initialStateCounts,
+    transitionCounts,
+    emissionCounts
+  )
+}
 
 case class CoupledHMMPartialCounts(
-  stringProb: Double,
-  //stateCounts: HashMap[HiddenState,Double],
+  stringLogProb: Double,
   initialStateCounts: HashMap[HiddenStatePair,Double],
-  //initialStateCountsB: HashMap[HiddenState,Double],
   transitionCountsA: HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
   transitionCountsB: HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
   emissionCountsA: HashMap[HiddenState,HashMap[ObservedState,Double]],
   emissionCountsB: HashMap[HiddenState,HashMap[ObservedState,Double]]
-) extends PartialCounts
+) extends PartialCounts {
+  val logProb = stringLogProb
+  def +( otherPC: PartialCounts ) = {
+    val CoupledHMMPartialCounts(
+      otherStringLogProb,
+      otherInitialStateCounts,
+      otherTransitionCountsA,
+      otherTransitionCountsB,
+      otherEmissionCountsA,
+      otherEmissionCountsB
+    ) = otherPC
+
+    CoupledHMMPartialCounts(
+      stringLogProb + otherStringLogProb,
+      HashMap(
+        initialStateCounts.keySet.map{ q =>
+          q -> Util.log_add(
+            List( initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb )
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        transitionCountsA.keySet.map{ qsFrom =>
+          qsFrom -> HashMap(
+            transitionCountsA(qsFrom).keySet.map{ qA =>
+              qA -> Util.log_add(
+                List(
+                  transitionCountsA(qsFrom)(qA),
+                  otherTransitionCountsA(qsFrom)(qA) - otherStringLogProb
+                )
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        transitionCountsB.keySet.map{ qsFrom =>
+          qsFrom -> HashMap(
+            transitionCountsB(qsFrom).keySet.map{ qB =>
+              qB -> Util.log_add(
+                List(
+                  transitionCountsB(qsFrom)(qB),
+                  otherTransitionCountsB(qsFrom)(qB) - otherStringLogProb
+                )
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        emissionCountsA.keySet.map{ qsFrom =>
+          qsFrom -> HashMap(
+            emissionCountsA(qsFrom).keySet.map{ obsA =>
+              obsA -> Util.log_add(
+                List(
+                  emissionCountsA(qsFrom)(obsA),
+                  otherEmissionCountsA(qsFrom)(obsA) //- otherStringLogProb
+                )
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        emissionCountsB.keySet.map{ qsFrom =>
+          qsFrom -> HashMap(
+            emissionCountsB(qsFrom).keySet.map{ obsB =>
+              obsB -> Util.log_add(
+                List(
+                  emissionCountsB(qsFrom)(obsB),
+                  otherEmissionCountsB(qsFrom)(obsB) //- otherStringLogProb
+                )
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      )
+    )
+  }
+
+  def toParameters = CoupledHMMParameters(
+    initialStateCounts,
+    transitionCountsA,
+    transitionCountsB,
+    emissionCountsA,
+    emissionCountsB
+  )
+}
 
 
 abstract class Parameters
 
 case class CoupledHMMParameters(
 initialProbs:HashMap[HiddenStatePair,Double],
-//initialProbsB:HashMap[HiddenState,Double],
 transitionsA:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
 transitionsB:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
 emissionsA:HashMap[HiddenState,HashMap[ObservedState,Double]],
 emissionsB:HashMap[HiddenState,HashMap[ObservedState,Double]]
 ) extends Parameters
 
+case class PlainHMMParameters(
+initialProbs:HashMap[HiddenState,Double],
+transitions:HashMap[HiddenState,HashMap[HiddenState,Double]],
+emissions:HashMap[HiddenState,HashMap[ObservedState,Double]]
+) extends Parameters
+
+abstract class Estimate
+case class EstimateCorpus( s:List[List[ObservedLabel]] ) extends Estimate
+case class EstimateUtterance( s:List[ObservedLabel] ) extends Estimate
+case class Viterbi( s:List[ObservedLabel] ) extends Estimate
 
 

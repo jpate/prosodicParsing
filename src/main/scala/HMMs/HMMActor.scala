@@ -1,18 +1,37 @@
-package prosodicParsing.HMMs
+package ProsodicParsing.HMMs
 
-import prosodicParsing.types._
+import ProsodicParsing.types._
 import scala.actors._
 import scala.actors.Actor
 
-/*
-abstract class AbstractHMMActor[Q<:AbstractHiddenState,O<:AbstractObservation,P<:AbstractHMMParameters]
-  extends AbstractHMM[Q,O,P] with Actor{
+trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
+
+  def setParams( params:Parameters ):Unit
+  def computePartialCounts( s:List[O] ):PartialCounts
+  def argmax( corpus:List[List[O]] ):List[List[Q]]
+  def normalize:Unit
+
+
+  //type P<:Parameters
   def act() {
+    println( "Starting..." )
     loop {
       react{
-        case parameters:P => { setParameters(parameters) }
-        case Estimate( obs:List[O] ) => reply( computeExpectations(obs) )
-        case Viterbi( obs:List[O] ) => reply( viterbi( obs ) )
+        case parameters:Parameters => {
+          setParams(parameters)
+          normalize
+        }
+        case EstimateCorpus( corpus:List[List[O]] ) => {
+          //println( "Got a (sub?)corpus" )
+          corpus.foreach( sender ! computePartialCounts(_) )
+        }
+        case EstimateUtterance( utt:List[O] ) => {
+          //println( "Got an utterance: " + utt )
+          reply( computePartialCounts(utt) )
+        }
+        case Viterbi( corpus:List[List[O]] ) => {
+          reply( argmax( corpus ) )
+        }
         case Stop => exit()
       }
     }
@@ -20,5 +39,4 @@ abstract class AbstractHMMActor[Q<:AbstractHiddenState,O<:AbstractObservation,P<
 }
 
 case object Stop
-*/
 

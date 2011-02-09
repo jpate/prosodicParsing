@@ -1,6 +1,8 @@
 package ProsodicParsing.runners
 import ProsodicParsing.HMMs.PlainHMM
 import ProsodicParsing.HMMs.CoupledHMM
+import ProsodicParsing.HMMs.HMMMaster
+import ProsodicParsing.HMMs.HMMActor
 import ProsodicParsing.types._
 
 object DevelopmentRunner {
@@ -193,6 +195,50 @@ object CoupledDevelopmentRunner {
     println( h )
 
     h.argmax( trainingData ).map{_.mkString(""," ",".")}.mkString("\t","\n\t","\n")
+
+  }
+}
+
+object ActorsDevelopmentRunner {
+  def main( args:Array[String]) {
+    import scala.math.log
+
+    val dataPath = args(0)
+
+    val hiddenStates =
+      Set( "S_0", "S_1", "S_2" ).flatMap{ x =>
+        Set( "P_1","P_2","P_3" ).map{ y =>
+          HiddenStatePair( x, y )
+        }
+      }
+
+    val corpus = io.Source.fromFile( dataPath ).getLines().toList.map(
+      _.split(" ").toList.map{ w =>
+        val Array( word, prosody ) = w.split( "#")
+        ObservedStatePair( word, prosody )
+      }
+    ).filter( _.size > 2 )
+
+    val observationTypes = Set( corpus.flatten).flatten.toSet
+
+    object Manager
+      extends CoupledHMM(hiddenStates,observationTypes)
+      with HMMMaster[HiddenStatePair,ObservedStatePair] {
+      val trainingData = corpus
+      var hmms = List[HMMActor[HiddenStatePair,ObservedStatePair]](
+        new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
+        new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
+        new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair]
+      )
+
+      def converged( iterations:Int, deltaLogProb:Double ) =
+        iterations > 100 || ( math.abs( deltaLogProb ) < 0.00001 && iterations > 15 )
+    }
+
+    Manager.randomize(10)
+    println( "Starting HMM: ")
+    //println( Manager )
+    Manager.start()
 
   }
 }

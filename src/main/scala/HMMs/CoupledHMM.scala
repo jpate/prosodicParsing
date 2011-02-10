@@ -257,13 +257,13 @@ class CoupledHMM(
 
     stringLength = tokens.size
 
-    val hiddenVarA = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphA ) )
-    val hiddenVarB = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphB ) )
+    val hiddenVarA = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphA.size ) )
+    val hiddenVarB = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphB.size ) )
 
     hiddenVariables = hiddenVarA ++ hiddenVarB
 
-    val obsVarA = Array.tabulate( tokens.size )( _ => new Variable( obsAlphA ) )
-    val obsVarB = Array.tabulate( tokens.size )( _ => new Variable( obsAlphB ) )
+    val obsVarA = Array.tabulate( tokens.size )( _ => new Variable( obsAlphA.size ) )
+    val obsVarB = Array.tabulate( tokens.size )( _ => new Variable( obsAlphB.size ) )
 
     observations = obsVarA ++ obsVarB
 
@@ -485,13 +485,13 @@ class CoupledHMM(
 
     stringLength = tokens.size
 
-    val hiddenVarA = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphA ) )
-    val hiddenVarB = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphB ) )
+    val hiddenVarA = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphA.size ) )
+    val hiddenVarB = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphB.size ) )
 
     hiddenVariables = hiddenVarA ++ hiddenVarB
 
-    val obsVarA = Array.tabulate( tokens.size )( _ => new Variable( obsAlphA ) )
-    val obsVarB = Array.tabulate( tokens.size )( _ => new Variable( obsAlphB ) )
+    val obsVarA = Array.tabulate( tokens.size )( _ => new Variable( obsAlphA.size ) )
+    val obsVarB = Array.tabulate( tokens.size )( _ => new Variable( obsAlphB.size ) )
 
     observations = obsVarA ++ obsVarB
 

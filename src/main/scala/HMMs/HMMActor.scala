@@ -10,6 +10,7 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
   def computePartialCounts( s:List[O] ):PartialCounts
   def argmax( corpus:List[O] ):List[Q]
   def normalize:Unit
+  def initialPartialCounts:PartialCounts
 
 
   //type P<:Parameters
@@ -22,11 +23,17 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
           normalize
         }
         case EstimateCorpus( corpus:List[List[O]] ) => {
-          //println( "Got a (sub?)corpus" )
-          corpus.foreach( sender ! computePartialCounts(_) )
+          println( "Got a (sub?)corpus" )
+          //corpus.foreach( sender ! computePartialCounts(_) )
+          //reply( Tuple2( corpus.size, corpus.map( computePartialCounts(_) ).reduceLeft(_+_) ) )
+          var summingPartialCounts:PartialCounts = initialPartialCounts
+          corpus.foreach{ s =>
+            summingPartialCounts = summingPartialCounts + computePartialCounts( s )
+          }
+          reply( Tuple2( corpus.size, summingPartialCounts ) )
         }
         case EstimateUtterance( utt:List[O] ) => {
-          //println( "Got an utterance: " + utt )
+          println( "Got an utterance: " + utt )
           reply( computePartialCounts(utt) )
         }
         case Viterbi( iteration, corpus ) => {
@@ -38,6 +45,7 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
           //reply( argmax( corpus ) )
         }
         case Stop => exit()
+        case somethingElse:Any => println( "Slave got something else:\n" + somethingElse )
       }
     }
   }

@@ -37,12 +37,22 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
     summingPartialCounts = initialPartialCounts
 
+        // hmms.foreach{ hmm =>
+        //   hmm ! packageParameters
+        //   val thisUtt = toSend.head
+        //   toSend = toSend.tail
+        //   hmm ! EstimateUtterance( thisUtt )
+        //   sent = thisUtt :: sent
+        // }
+
+
+    var corpusPartitions = toSend.grouped( toSend.size/hmms.size  + 1 ).toList
     hmms.foreach{ hmm =>
       hmm ! packageParameters
-      val thisUtt = toSend.head
-      toSend = toSend.tail
-      hmm ! EstimateUtterance( thisUtt )
-      sent = thisUtt :: sent
+      val theseUtts = corpusPartitions.head
+      corpusPartitions = corpusPartitions.tail
+      hmm ! EstimateCorpus( theseUtts )
+      sent = theseUtts ++ sent
     }
   }
 
@@ -97,6 +107,14 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
             }
           }
         }
+        case Tuple2( numSentences:Int, pc:PartialCounts ) => {
+          summingPartialCounts = summingPartialCounts + pc
+          received += numSentences
+          if( received == sent.size ) {
+            iterationEnd
+          }
+        }
+        case somethingElse:Any => println( "Manager got something else:\n" + somethingElse )
       }
     }
   }
@@ -123,7 +141,7 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
 
   override def emEnd {
     viterbiHMM ! packageParameters
-    viterbiHMM ! testSet
+    viterbiHMM ! Viterbi( -1, testSet )
     viterbiHMM ! Stop
     exit
   }

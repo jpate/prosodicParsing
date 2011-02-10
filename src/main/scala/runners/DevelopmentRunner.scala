@@ -135,12 +135,20 @@ object CoupledDevelopmentRunner {
         }
       }
 
-    val trainingData = io.Source.fromFile( dataPath ).getLines().toList.map(
-      _.split(" ").toList.map{ w =>
-        val Array( word, prosody ) = w.split( "#")
-        ObservedStatePair( word, prosody )
-      }
-    ).filter( _.size > 2 )
+      //val trainingData = io.Source.fromFile( dataPath ).getLines().toList.map(
+      //  _.split(" ").toList.map{ w =>
+      //    val Array( word, prosody ) = w.split( "#")
+      //    ObservedStatePair( word, prosody )
+      //  }
+      //).filter( _.size > 2 )
+
+    val trainingData = io.Source.fromFile( dataPath ).getLines().toList.map{ rawString =>
+      val tokenized = rawString.split(" ").toList
+        tokenized.tail.map{ w =>
+          val Array( word, prosody ) = w.split( "#" )
+          ObservedStatePair( word, prosody )
+        }
+    }.filter{ s => s.size > 2 && s.size < 25 }
 
     val observationTypes =// Set( uttStart, uttEnd  ) ++
       Set(
@@ -214,12 +222,22 @@ object ActorsDevelopmentRunner {
         }
       }
 
-    val corpus = io.Source.fromFile( dataPath ).getLines().toList.map(
-      _.split(" ").toList.map{ w =>
-        val Array( word, prosody ) = w.split( "#")
-        ObservedStatePair( word, prosody )
-      }
-    ).filter( _.size > 2 )
+        // val corpus = io.Source.fromFile( dataPath ).getLines().toList.map(
+        //   _.split(" ").toList.map{ w =>
+        //     val Array( word, prosody ) = w.split( "#")
+        //     ObservedStatePair( word, prosody )
+        //   }
+        // ).filter( _.size > 2 )
+
+    val corpus = io.Source.fromFile( dataPath ).getLines().toList.map{ rawString =>
+      val tokenized = rawString.split(" ").toList
+        tokenized.tail.map{ w =>
+          val Array( word, prosody ) = w.split( "#" )
+          ObservedStatePair( word, prosody )
+        }
+    }.filter{ s => s.size > 2 && s.size < 25 }
+
+    println( corpus.size + " training sentences" )
 
     val testCorpus = io.Source.fromFile( testDataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
@@ -230,7 +248,9 @@ object ActorsDevelopmentRunner {
           ObservedStatePair( word, prosody )
         }
       )
-    }.filter{ _.size > 2 }
+    }.filter{ s => s.size > 2 && s.size < 25 }
+
+    println( testCorpus.size + " dev sentences" )
 
     val observationTypes = Set( corpus.flatten).flatten.toSet
 
@@ -241,7 +261,7 @@ object ActorsDevelopmentRunner {
       val trainingData = corpus
       var hmms = List[HMMActor[HiddenStatePair,ObservedStatePair]](
         new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
-        new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
+        //new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
         new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair]
       )
 
@@ -251,7 +271,7 @@ object ActorsDevelopmentRunner {
       val testSet = testCorpus
 
       def converged( iterations:Int, deltaLogProb:Double ) =
-        iterations > 100 || ( math.abs( deltaLogProb ) < 0.00001 && iterations > 15 )
+        iterations > 100 || ( math.abs( deltaLogProb ) < 0.01 && iterations > 15 )
     }
 
     Manager.randomize(10)

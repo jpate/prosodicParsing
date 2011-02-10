@@ -3,6 +3,7 @@ package ProsodicParsing.HMMs
 import ProsodicParsing.types._
 import cc.mallet.grmm.types._
 import cc.mallet.grmm.inference.ForwardBackwardInferencer
+import cc.mallet.grmm.inference.JunctionTreeInferencer
 import cc.mallet.grmm.util.Models
 import ProsodicParsing.util.Util
 
@@ -60,7 +61,7 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
 
   def argmax( string:List[ObservedType] ) = {
     buildSlicedHMM( string )
-    val maxAssn = Models.viterbi( hmm,  ForwardBackwardInferencer.createForMaxProduct() )
+    val maxAssn = Models.bestAssignment( hmm,  JunctionTreeInferencer.createForMaxProduct() )
     assignmentToViterbiString( maxAssn )
   }
 

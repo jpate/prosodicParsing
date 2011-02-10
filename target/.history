@@ -57,3 +57,7 @@ a
 compile
 a
 compile
+jar
+package
+compile
+package

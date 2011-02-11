@@ -1,13 +1,13 @@
 package ProsodicParsing.HMMs
 
 import ProsodicParsing.types._
-import ProsodicParsing.util.Util
 import cc.mallet.types.LabelAlphabet
 import cc.mallet.grmm._
 import cc.mallet.grmm.types._
 import cc.mallet.grmm.inference.ForwardBackwardInferencer
 import cc.mallet.grmm.inference.JunctionTreeInferencer
 import cc.mallet.grmm.inference.JunctionTreeInferencer._
+import cc.mallet.util.Maths
 import scala.collection.immutable.{HashMap,HashSet}
 import scala.collection.mutable.{HashMap => MHashMap}
 
@@ -300,35 +300,27 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
           )
 
 
-          transitionCounts(qFrom)(qTo) = Util.log_add(
-            List(
+          transitionCounts(qFrom)(qTo) = Maths.sumLogProb(
               transitionCounts(qFrom)(qTo),
               thisTransitionCount
-            )
           )
 
           if( i == 0 )
-            initialStateCounts(qFrom) = Util.log_add(
-              List(
+            initialStateCounts(qFrom) = Maths.sumLogProb(
                 initialStateCounts(qFrom),
                 thisTransitionCount
-              )
             )
 
 
-          emissionCounts(qFrom)(sequence(i)) = Util.log_add(
-            List(
+          emissionCounts(qFrom)(sequence(i)) = Maths.sumLogProb(
               emissionCounts(qFrom)(sequence(i)),
               thisTransitionCount
-            )
           )
 
           if( i == (hiddenVariables.size-2) ) {
-            emissionCounts(qTo)(sequence(i+1)) = Util.log_add(
-              List(
+            emissionCounts(qTo)(sequence(i+1)) = Maths.sumLogProb(
                 emissionCounts(qTo)(sequence(i+1)),
                 thisTransitionCount
-              )
             )
           }
         }
@@ -473,43 +465,31 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
       transitionCounts.keySet.foreach{ qFrom =>
         transitionCounts(qFrom).keySet.foreach{ qTo =>
-          stringTransitionDenominator(qFrom) = Util.log_add(
-            List(
+          stringTransitionDenominator(qFrom) = Maths.sumLogProb(
               stringTransitionDenominator(qFrom),
               transitionCounts(qFrom)(qTo)
-            )
           )
-          stringTransitionCounts(qFrom)(qTo) = Util.log_add(
-            List(
+          stringTransitionCounts(qFrom)(qTo) = Maths.sumLogProb(
               stringTransitionCounts(qFrom)(qTo),
               transitionCounts(qFrom)(qTo)
-            )
           )
         }
-        stringInitialStateDenominator = Util.log_add(
-          List(
+        stringInitialStateDenominator = Maths.sumLogProb(
             stringInitialStateDenominator,
             initialStateCounts(qFrom)
-          )
         )
-        stringInitialStateCounts(qFrom) = Util.log_add(
-          List(
+        stringInitialStateCounts(qFrom) = Maths.sumLogProb(
             stringInitialStateCounts(qFrom),
             initialStateCounts(qFrom)
-          )
         )
         emissionCounts(qFrom).keySet.foreach{ o =>
-          stringEmissionDenominator(qFrom) = Util.log_add(
-            List(
+          stringEmissionDenominator(qFrom) = Maths.sumLogProb(
               stringEmissionDenominator(qFrom),
               emissionCounts(qFrom)(o)
-            )
           )
-          stringEmissionCounts(qFrom)(o) = Util.log_add(
-            List(
+          stringEmissionCounts(qFrom)(o) = Maths.sumLogProb(
               stringEmissionCounts(qFrom)(o),
               emissionCounts(qFrom)(o)
-            )
           )
         }
       }
@@ -523,60 +503,39 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       // stringInitialStateCounts.keySet.foreach{ q =>
       // }
 
-      corpusInitialStateDenominator = Util.log_add(
-        List(
+      corpusInitialStateDenominator = Maths.sumLogProb(
           corpusInitialStateDenominator,
-          stringInitialStateDenominator //- stringLogProb
-        )
+          stringInitialStateDenominator - stringLogProb
       )
 
 
       stringTransitionCounts.keySet.foreach{ qFrom =>
         stringTransitionCounts(qFrom).keySet.foreach{ qTo =>
-          corpusTransitionCounts(qFrom)(qTo) = Util.log_add(
-            List(
+          corpusTransitionCounts(qFrom)(qTo) = Maths.sumLogProb(
               corpusTransitionCounts(qFrom)(qTo),
               stringTransitionCounts(qFrom)(qTo) - stringLogProb
-            )
           )
         }
-        corpusInitialStateCounts(qFrom) = Util.log_add(
-          List(
+        corpusInitialStateCounts(qFrom) = Maths.sumLogProb(
             corpusInitialStateCounts(qFrom),
-            stringInitialStateCounts(qFrom) //- stringLogProb
-          )
+            stringInitialStateCounts(qFrom) - stringLogProb
         )
-        corpusTransitionDenominator(qFrom) = Util.log_add(
-          List(
+        corpusTransitionDenominator(qFrom) = Maths.sumLogProb(
             corpusTransitionDenominator(qFrom),
             stringTransitionDenominator(qFrom) - stringLogProb
-          )
         )
         stringEmissionCounts(qFrom).keySet.foreach{ obs =>
-          corpusEmissionCounts(qFrom)(obs) = Util.log_add(
-            List(
+          corpusEmissionCounts(qFrom)(obs) = Maths.sumLogProb(
               corpusEmissionCounts(qFrom)(obs),
-              stringEmissionCounts(qFrom)(obs) //- stringLogProb
-            )
+              stringEmissionCounts(qFrom)(obs) - stringLogProb
           )
         }
-        corpusEmissionDenominator(qFrom) = Util.log_add(
-          List(
+        corpusEmissionDenominator(qFrom) = Maths.sumLogProb(
             corpusEmissionDenominator(qFrom),
-            stringEmissionDenominator(qFrom) //- stringLogProb
-          )
+            stringEmissionDenominator(qFrom) - stringLogProb
         )
       }
 
-      // stringTransitionDenominator.keySet.foreach{ qFrom =>
-      // }
-
-
-      // stringEmissionCounts.keySet.foreach{ q =>
-      // }
-
-      // stringEmissionDenominator.keySet.foreach{ qFrom =>
-      // }
 
       totalCorpusLogProb += stringLogProb
     }
@@ -636,7 +595,8 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     ) = computePartialCounts( sequence ) 
 
 
-    val initialStateCountsTotal = initialStateCounts.values.reduceLeft( (a,b) => Util.log_add( a::b::Nil ) )
+    val initialStateCountsTotal =
+      initialStateCounts.values.reduceLeft( (a,b) => Maths.sumLogProb( a, b ) )
     val stateProbs = HashMap(
       initialStateCounts.keySet.map{ q =>
         q -> (
@@ -647,7 +607,8 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
     val transitionProbs = HashMap(
       transitionCounts.keySet.map{ qFrom =>
-        val qFromTotal = transitionCounts(qFrom).values.reduceLeft( (a,b) => Util.log_add( a::b::Nil ) )
+        val qFromTotal =
+          transitionCounts(qFrom).values.reduceLeft( (a,b) => Maths.sumLogProb( a, b ) )
         qFrom -> HashMap(
           transitionCounts(qFrom).keySet.map{ qTo =>
             qTo -> (
@@ -660,7 +621,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
     val emissionProbs = HashMap(
       emissionCounts.keySet.map{ q =>
-        val qTotal = emissionCounts(q).values.reduceLeft( (a,b) => Util.log_add( a::b::Nil ) )
+        val qTotal = emissionCounts(q).values.reduceLeft( (a,b) => Maths.sumLogProb( a, b ) )
         q -> HashMap(
           emissionCounts(q).keySet.map{ obs =>
             obs -> (

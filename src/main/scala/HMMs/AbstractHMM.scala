@@ -5,7 +5,7 @@ import cc.mallet.grmm.types._
 import cc.mallet.grmm.inference.ForwardBackwardInferencer
 import cc.mallet.grmm.inference.JunctionTreeInferencer
 import cc.mallet.grmm.util.Models
-import ProsodicParsing.util.Util
+import cc.mallet.util.Maths
 
 abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
   hiddenStateTypesSet:Set[HiddenType],

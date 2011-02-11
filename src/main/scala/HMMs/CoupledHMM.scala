@@ -1,12 +1,12 @@
 package ProsodicParsing.HMMs
 
 import ProsodicParsing.types._
-import ProsodicParsing.util.Util
 import cc.mallet.types.LabelAlphabet
 import collection.immutable.HashMap
 import cc.mallet.grmm.inference.JunctionTreeInferencer
 import cc.mallet.grmm._
 import cc.mallet.grmm.types._
+import cc.mallet.util.Maths
 import collection.mutable.{HashMap => MHashMap}
 
 
@@ -712,39 +712,31 @@ class CoupledHMM(
       assert( transitionCountsA.keySet == transitionCountsB.keySet )
 
       transitionCountsA.keySet.foreach{ qsFrom =>
-        corpusInitialStateCounts(qsFrom) = Util.log_add(
-          List(
+        corpusInitialStateCounts(qsFrom) = Maths.sumLogProb(
             corpusInitialStateCounts(qsFrom),
             initialStateCounts(qsFrom) - stringLogProb
-          )
         )
 
         transitionCountsA(qsFrom).keySet.foreach{ qTo =>
-          corpusTransitionCountsA(qsFrom)(qTo) = Util.log_add(
-            List(
+          corpusTransitionCountsA(qsFrom)(qTo) = Maths.sumLogProb(
               corpusTransitionCountsA(qsFrom)(qTo),
               transitionCountsA(qsFrom)(qTo) - stringLogProb
-            )
           )
         }
 
         transitionCountsB(qsFrom).keySet.foreach{ qTo =>
-          corpusTransitionCountsB(qsFrom)(qTo) = Util.log_add(
-            List(
+          corpusTransitionCountsB(qsFrom)(qTo) = Maths.sumLogProb(
               corpusTransitionCountsB(qsFrom)(qTo),
               transitionCountsB(qsFrom)(qTo) - stringLogProb
-            )
           )
         }
       }
 
       emissionCountsA.keySet.foreach{ qA =>
         emissionCountsA(qA).keySet.foreach{ obsA =>
-          corpusEmissionCountsA(qA)(obsA) = Util.log_add(
-            List(
+          corpusEmissionCountsA(qA)(obsA) = Maths.sumLogProb(
               corpusEmissionCountsA(qA)(obsA),
               emissionCountsA(qA)(obsA) //- stringLogProb
-            )
           )
         }
       }
@@ -752,11 +744,9 @@ class CoupledHMM(
 
       emissionCountsB.keySet.foreach{ qB =>
         emissionCountsB(qB).keySet.foreach{ obsB =>
-          corpusEmissionCountsB(qB)(obsB) = Util.log_add(
-            List(
+          corpusEmissionCountsB(qB)(obsB) = Maths.sumLogProb(
               corpusEmissionCountsB(qB)(obsB),
               emissionCountsB(qB)(obsB) //- stringLogProb
-            )
           )
         }
       }
@@ -936,36 +926,28 @@ class CoupledHMM(
           )
 
           if( i == 0 ) {
-            initialStateCounts( qsFrom ) = Util.log_add(
-              List(
+            initialStateCounts( qsFrom ) = Maths.sumLogProb(
                 initialStateCounts( qsFrom ),
                 thisTransitionCountA
-              )
             )
           }
 
-          transitionCountsA(qsFrom)(qToA) = Util.log_add(
-            List(
+          transitionCountsA(qsFrom)(qToA) = Maths.sumLogProb(
               transitionCountsA(qsFrom)(qToA),
               thisTransitionCountA
-            )
           )
 
-          emissionCountsA(qFromA)( ObservedState(obsA) ) = Util.log_add(
-            List(
+          emissionCountsA(qFromA)( ObservedState(obsA) ) = Maths.sumLogProb(
               emissionCountsA(qFromA)( ObservedState(obsA) ),
               thisTransitionCountA
-            )
           )
 
           if( i == tokens.size - 2 ) {
             val ObservedStatePair( lastObsAString, _ ) = tokens(i+1)
 
-            emissionCountsA(qToA)( ObservedState(lastObsAString) ) = Util.log_add(
-              List(
+            emissionCountsA(qToA)( ObservedState(lastObsAString) ) = Maths.sumLogProb(
                 emissionCountsA(qToA)( ObservedState(lastObsAString) ),
                 thisTransitionCountA
-              )
             )
           }
 
@@ -985,36 +967,28 @@ class CoupledHMM(
           )
 
           if( i == 0 ) {
-            initialStateCounts( qsFrom ) = Util.log_add(
-              List(
+            initialStateCounts( qsFrom ) = Maths.sumLogProb(
                 initialStateCounts( qsFrom ),
                 thisTransitionCountB
-              )
             )
           }
 
-          transitionCountsB(qsFrom)(qToB) = Util.log_add(
-            List(
+          transitionCountsB(qsFrom)(qToB) = Maths.sumLogProb(
               transitionCountsB(qsFrom)(qToB),
               thisTransitionCountB
-            )
           )
 
-          emissionCountsB(qFromB)( ObservedState(obsB) ) = Util.log_add(
-            List(
+          emissionCountsB(qFromB)( ObservedState(obsB) ) = Maths.sumLogProb(
               emissionCountsB(qFromB)( ObservedState(obsB) ),
               thisTransitionCountB
-            )
           )
 
           if( i == tokens.size - 2 ) {
             val ObservedStatePair( _, lastObsBString ) = tokens(i+1)
 
-            emissionCountsB(qToB)( ObservedState(lastObsBString) ) = Util.log_add(
-              List(
+            emissionCountsB(qToB)( ObservedState(lastObsBString) ) = Maths.sumLogProb(
                 emissionCountsB(qToB)( ObservedState(lastObsBString) ),
                 thisTransitionCountB
-              )
             )
           }
 

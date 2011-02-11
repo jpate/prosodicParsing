@@ -1,6 +1,7 @@
 package ProsodicParsing.types
 import scala.collection.immutable.HashMap
-import ProsodicParsing.util.Util
+//import ProsodicParsing.util.Util
+import cc.mallet.util.Maths
 import math.{exp,log}
 
 
@@ -131,7 +132,9 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
 
   def normalize {
     val maxes = HashMap(
-      cpt.keySet.map( parent => parent -> ( Util.log_add( cpt(parent).values.toList ) ) ).toSeq:_*
+      cpt.keySet.map( parent =>
+        parent -> ( cpt(parent).values.reduceLeft( Maths.sumLogProb(_,_) ) )
+      ).toSeq:_*
     )
 
     cpt = HashMap(
@@ -191,6 +194,14 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
     cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
       cpt(parent).keySet.toList.sortWith( (c,d) => c < d ).map{ child =>
         exp( cpt(parent)(child) )
+      }
+    }.toArray
+  }
+
+  def toLogArray = {
+    cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
+      cpt(parent).keySet.toList.sortWith( (c,d) => c < d ).map{ child =>
+        cpt(parent)(child)
       }
     }.toArray
   }
@@ -264,7 +275,7 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
 
 
   def normalize {
-    val max = Util.log_add( pt.values.toList )
+    val max = pt.values.reduceLeft( Maths.sumLogProb( _ , _) )
 
     //val singleSupport = pt.values.exists( _ == 0D )
 
@@ -282,7 +293,7 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
   }
 
   // def normalize {
-  //   val max = Util.log_add( pt.values.toList )
+  //   val max = Maths.sumLogProb( pt.values.toList )
 
   //   pt = HashMap(
   //     pt.keySet.map{ parent =>
@@ -459,8 +470,8 @@ case class PlainHMMPartialCounts(
       stringLogProb + otherStringLogProb,
       HashMap(
         initialStateCounts.keySet.map{ q =>
-          q -> Util.log_add(
-            List( initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb )
+          q -> Maths.sumLogProb(
+            initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb
           )
         }.toSeq:_*
       ),
@@ -468,11 +479,9 @@ case class PlainHMMPartialCounts(
         transitionCounts.keySet.map{ qFrom =>
           qFrom -> HashMap(
             transitionCounts(qFrom).keySet.map{ qTo =>
-              qTo -> Util.log_add(
-                List(
+              qTo -> Maths.sumLogProb(
                   transitionCounts(qFrom)(qTo),
                   otherTransitionCounts(qFrom)(qTo) - otherStringLogProb
-                )
               )
             }.toSeq:_*
           )
@@ -482,10 +491,9 @@ case class PlainHMMPartialCounts(
         emissionCounts.keySet.map{ q =>
           q -> HashMap(
             emissionCounts(q).keySet.map{ obs =>
-              obs -> Util.log_add(
-                List( emissionCounts(q)(obs),
-                  otherEmissionCounts(q)(obs) - otherStringLogProb
-                )
+              obs -> Maths.sumLogProb(
+                emissionCounts(q)(obs),
+                otherEmissionCounts(q)(obs) - otherStringLogProb
               )
             }.toSeq:_*
           )
@@ -524,8 +532,8 @@ case class CoupledHMMPartialCounts(
       stringLogProb + otherStringLogProb,
       HashMap(
         initialStateCounts.keySet.map{ q =>
-          q -> Util.log_add(
-            List( initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb )
+          q -> Maths.sumLogProb(
+            initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb
           )
         }.toSeq:_*
       ),
@@ -533,11 +541,9 @@ case class CoupledHMMPartialCounts(
         transitionCountsA.keySet.map{ qsFrom =>
           qsFrom -> HashMap(
             transitionCountsA(qsFrom).keySet.map{ qA =>
-              qA -> Util.log_add(
-                List(
+              qA -> Maths.sumLogProb(
                   transitionCountsA(qsFrom)(qA),
                   otherTransitionCountsA(qsFrom)(qA) - otherStringLogProb
-                )
               )
             }.toSeq:_*
           )
@@ -547,11 +553,9 @@ case class CoupledHMMPartialCounts(
         transitionCountsB.keySet.map{ qsFrom =>
           qsFrom -> HashMap(
             transitionCountsB(qsFrom).keySet.map{ qB =>
-              qB -> Util.log_add(
-                List(
+              qB -> Maths.sumLogProb(
                   transitionCountsB(qsFrom)(qB),
                   otherTransitionCountsB(qsFrom)(qB) - otherStringLogProb
-                )
               )
             }.toSeq:_*
           )
@@ -561,11 +565,9 @@ case class CoupledHMMPartialCounts(
         emissionCountsA.keySet.map{ qsFrom =>
           qsFrom -> HashMap(
             emissionCountsA(qsFrom).keySet.map{ obsA =>
-              obsA -> Util.log_add(
-                List(
+              obsA -> Maths.sumLogProb(
                   emissionCountsA(qsFrom)(obsA),
                   otherEmissionCountsA(qsFrom)(obsA) //- otherStringLogProb
-                )
               )
             }.toSeq:_*
           )
@@ -575,11 +577,9 @@ case class CoupledHMMPartialCounts(
         emissionCountsB.keySet.map{ qsFrom =>
           qsFrom -> HashMap(
             emissionCountsB(qsFrom).keySet.map{ obsB =>
-              obsB -> Util.log_add(
-                List(
+              obsB -> Maths.sumLogProb(
                   emissionCountsB(qsFrom)(obsB),
                   otherEmissionCountsB(qsFrom)(obsB) //- otherStringLogProb
-                )
               )
             }.toSeq:_*
           )

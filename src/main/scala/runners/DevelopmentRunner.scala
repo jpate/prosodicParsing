@@ -278,8 +278,8 @@ object ActorsDevelopmentRunner {
       val trainingData = corpus
       //var hmms = List[HMMActor[HiddenStatePair,ObservedStatePair]](
       var hmms = List[ActorRef](
-        //actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet )
-        //  with HMMActor[HiddenStatePair,ObservedStatePair]).start,
+        actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet )
+          with HMMActor[HiddenStatePair,ObservedStatePair]).start,
         //new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
         actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet ) with
         HMMActor[HiddenStatePair,ObservedStatePair] ).start

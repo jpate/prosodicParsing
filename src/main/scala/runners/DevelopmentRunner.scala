@@ -198,7 +198,8 @@ object CoupledDevelopmentRunner {
     var lastLogProb = 0D
     var deltaLogProb = 1D
     var n = 0
-    while( ( math.abs( deltaLogProb ) > 0.00001 ) & n < 100 ) {
+    while( ( math.abs( deltaLogProb ) > 0.01 || n <= 15 ) & n < 100 ) {
+      n += 1
       val newLogProb = h.reestimate( trainingData )
       deltaLogProb = ((newLogProb-lastLogProb)/lastLogProb)
       println( n + ": " + newLogProb + " ("+  deltaLogProb + ")")
@@ -214,7 +215,6 @@ object CoupledDevelopmentRunner {
           h.argmax( trainingData ).map{_.mkString(""," ",".")}.mkString("\t","\n\t","\n")
         )
       */
-      n += 1
     }
 
     println( "EM RESULTS IN: " )
@@ -278,8 +278,8 @@ object ActorsDevelopmentRunner {
       val trainingData = corpus
       //var hmms = List[HMMActor[HiddenStatePair,ObservedStatePair]](
       var hmms = List[ActorRef](
-        actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet )
-          with HMMActor[HiddenStatePair,ObservedStatePair]).start,
+        //actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet )
+        //  with HMMActor[HiddenStatePair,ObservedStatePair]).start,
         //new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
         actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet ) with
         HMMActor[HiddenStatePair,ObservedStatePair] ).start

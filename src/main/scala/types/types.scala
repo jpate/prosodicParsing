@@ -628,5 +628,5 @@ case class Viterbi( iterationCount:Int, vit:List[ViterbiString] )
 
 case class Randomize( centeredOn:Int )
 
-case class Initialize
+case object Initialize
 

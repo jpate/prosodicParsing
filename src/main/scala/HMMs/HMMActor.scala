@@ -28,7 +28,13 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
     case EstimateCorpus( corpus:List[List[O]] ) => {
       println( "Got a (sub?)corpus" )
       var summingPartialCounts:PartialCounts = initialPartialCounts
+      var n = 0
       corpus.foreach{ s =>
+        n = n + 1
+        if ( n % 10 == 0 )
+          println(
+            "HMM " + self.uuid + " processing sentence " + n + " of " + corpus.size
+          )
         summingPartialCounts = summingPartialCounts + computePartialCounts( s )
       }
       self.reply( Tuple2( corpus.size, summingPartialCounts ) )

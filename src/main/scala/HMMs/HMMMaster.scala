@@ -1,12 +1,15 @@
 package ProsodicParsing.HMMs
 
 import ProsodicParsing.types._
-import scala.actors._
-import scala.actors.Actor
+// import scala.actors._
+// import scala.actors.Actor
+import akka.actor.Actor
+import akka.actor.ActorRef
 
 trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
   //var hmms:Array[HMMActor[Q,O]]
-  var hmms:List[HMMActor[Q,O]]
+  //var hmms:List[HMMActor[Q,O]]
+  var hmms:List[ActorRef]
   val trainingData: List[List[ObservedLabel]]
 
   def converged(iterationNum:Int, deltaLogProb:Double):Boolean
@@ -23,6 +26,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
   var corpusLogProb = 0D
 
   def initialPartialCounts:PartialCounts
+  def randomize(n:Int):Unit
 
   var summingPartialCounts = initialPartialCounts
 
@@ -36,15 +40,6 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
     received = 0
 
     summingPartialCounts = initialPartialCounts
-
-        // hmms.foreach{ hmm =>
-        //   hmm ! packageParameters
-        //   val thisUtt = toSend.head
-        //   toSend = toSend.tail
-        //   hmm ! EstimateUtterance( thisUtt )
-        //   sent = thisUtt :: sent
-        // }
-
 
     var corpusPartitions = toSend.grouped( toSend.size/hmms.size  + 1 ).toList
     hmms.foreach{ hmm =>
@@ -83,53 +78,54 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
   def emInit = ()
 
-  def act() {
-    emInit
-    toSend = trainingData
-    received = 0
 
-    hmms.foreach(_.start)
-    iterationStart
+  def receive = {
+    case Initialize => {
+      emInit
+      toSend = trainingData
+      received = 0
 
-    loop{
-      react {
-        case pc:PartialCounts => {
-          summingPartialCounts = summingPartialCounts + pc
-          received += 1
-          if( received == sent.size && toSend.isEmpty ) {
-            iterationEnd
-          } else {
-            if( ! toSend.isEmpty ) {
-              val nextUtt = toSend.head
-              toSend = toSend.tail
-              reply( EstimateUtterance( nextUtt ) )
-              sent = nextUtt :: sent
-            }
-          }
+      hmms.foreach( _ ! Initialize )
+      iterationStart
+    }
+    case pc:PartialCounts => {
+      summingPartialCounts = summingPartialCounts + pc
+      received += 1
+      if( received == sent.size && toSend.isEmpty ) {
+        iterationEnd
+      } else {
+        if( ! toSend.isEmpty ) {
+          val nextUtt = toSend.head
+          toSend = toSend.tail
+          self.reply( EstimateUtterance( nextUtt ) )
+          sent = nextUtt :: sent
         }
-        case Tuple2( numSentences:Int, pc:PartialCounts ) => {
-          summingPartialCounts = summingPartialCounts + pc
-          received += numSentences
-          if( received == sent.size ) {
-            iterationEnd
-          }
-        }
-        case somethingElse:Any => println( "Manager got something else:\n" + somethingElse )
       }
     }
+    case Tuple2( numSentences:Int, pc:PartialCounts ) => {
+      summingPartialCounts = summingPartialCounts + pc
+      received += numSentences
+      if( received == sent.size ) {
+        iterationEnd
+      }
+    }
+    case Randomize( centeredOn:Int) => randomize( centeredOn )
+    case somethingElse:Any => println( "Manager got something else:\n" + somethingElse )
   }
 }
 
 
 trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
-  val viterbiHMM:HMMActor[Q,O]
+  //val viterbiHMM:HMMActor[Q,O]
+  val viterbiHMM:ActorRef
 
   override def emInit = viterbiHMM.start()
 
   val frequency:Int
   val testSet:List[ViterbiString]
   var iterationCount:Int
-  var hmms:List[HMMActor[Q,O]]
+  //var hmms:List[HMMActor[Q,O]]
+  //var hmms:List[ActorRef]
 
   var summingPartialCounts:PartialCounts
   def setParams( params:Parameters )

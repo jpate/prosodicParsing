@@ -5,6 +5,8 @@ import ProsodicParsing.HMMs.HMMMaster
 import ProsodicParsing.HMMs.HMMActor
 import ProsodicParsing.HMMs.EvaluatingMaster
 import ProsodicParsing.types._
+import akka.actor.Actor.actorOf
+import akka.actor.ActorRef
 
 object DevelopmentRunner {
   def main( args:Array[String]) {
@@ -127,6 +129,7 @@ object CoupledDevelopmentRunner {
     import scala.math.log
 
     val dataPath = args(0)
+    val testDataPath = args(1)
 
     val hiddenStates =
       Set( "S_0", "S_1", "S_2" ).flatMap{ x =>
@@ -148,6 +151,17 @@ object CoupledDevelopmentRunner {
           val Array( word, prosody ) = w.split( "#" )
           ObservedStatePair( word, prosody )
         }
+    }.filter{ s => s.size > 2 && s.size < 25 }
+
+    val testCorpus = io.Source.fromFile( testDataPath ).getLines().toList.map{ rawString =>
+      val tokenized = rawString.split(" ").toList
+      ViterbiString(
+        tokenized.head,
+        tokenized.tail.map{ w =>
+          val Array( word, prosody ) = w.split( "#" )
+          ObservedStatePair( word, prosody )
+        }
+      )
     }.filter{ s => s.size > 2 && s.size < 25 }
 
     val observationTypes =// Set( uttStart, uttEnd  ) ++
@@ -188,8 +202,12 @@ object CoupledDevelopmentRunner {
       val newLogProb = h.reestimate( trainingData )
       deltaLogProb = ((newLogProb-lastLogProb)/lastLogProb)
       println( n + ": " + newLogProb + " ("+  deltaLogProb + ")")
-      println( h )
+      //println( h )
       lastLogProb = newLogProb
+      if( n % 4 == 0 )
+        testCorpus.foreach{ case ViterbiString(label, string:List[ObservedStatePair] ) =>
+          println( "it"+n + "," + label + "," + h.argmax( string ).mkString(""," ","") )
+        }
       /*
       if( n % 5 == 0 ) 
         println(
@@ -254,18 +272,21 @@ object ActorsDevelopmentRunner {
 
     val observationTypes = Set( corpus.flatten).flatten.toSet
 
-    object Manager
-      extends CoupledHMM(hiddenStates,observationTypes)
-      with HMMMaster[HiddenStatePair,ObservedStatePair]
+    val manager = actorOf(
+      new CoupledHMM(hiddenStates,observationTypes) with HMMMaster[HiddenStatePair,ObservedStatePair]
       with EvaluatingMaster[HiddenStatePair,ObservedStatePair] {
       val trainingData = corpus
-      var hmms = List[HMMActor[HiddenStatePair,ObservedStatePair]](
-        new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
+      //var hmms = List[HMMActor[HiddenStatePair,ObservedStatePair]](
+      var hmms = List[ActorRef](
+        actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet )
+          with HMMActor[HiddenStatePair,ObservedStatePair]).start,
         //new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
-        new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair]
+        actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet ) with
+        HMMActor[HiddenStatePair,ObservedStatePair] ).start
       )
 
-      val viterbiHMM = new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair]
+      val viterbiHMM = actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet ) with
+      HMMActor[HiddenStatePair,ObservedStatePair] )
 
       val frequency = 4
       val testSet = testCorpus
@@ -273,11 +294,14 @@ object ActorsDevelopmentRunner {
       def converged( iterations:Int, deltaLogProb:Double ) =
         iterations > 100 || ( math.abs( deltaLogProb ) < 0.01 && iterations > 15 )
     }
+    )
 
-    Manager.randomize(10)
+    manager.start
+    manager ! Randomize(10)
+    manager ! Initialize
     println( "Starting HMM: ")
     //println( Manager )
-    Manager.start()
+    manager.start()
   }
 }
 

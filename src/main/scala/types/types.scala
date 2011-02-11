@@ -626,4 +626,7 @@ case class ViterbiString( stringLabel:String, string:List[ObservedLabel] ) {
 
 case class Viterbi( iterationCount:Int, vit:List[ViterbiString] )
 
+case class Randomize( centeredOn:Int )
+
+case class Initialize
 

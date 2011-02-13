@@ -26,7 +26,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
   var corpusLogProb = 0D
 
   def initialPartialCounts:PartialCounts
-  def randomize(n:Int):Unit
+  def randomize(seed:Int, centeredOn:Int):Unit
 
   var summingPartialCounts = initialPartialCounts
 
@@ -41,13 +41,13 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
     summingPartialCounts = initialPartialCounts
 
-    var corpusPartitions = toSend.grouped( toSend.size/hmms.size  + 1 ).toList
+    //var corpusPartitions = toSend.grouped( toSend.size/hmms.size  + 1 ).toList
     hmms.foreach{ hmm =>
       hmm ! packageParameters
-      val theseUtts = corpusPartitions.head
-      corpusPartitions = corpusPartitions.tail
-      hmm ! EstimateCorpus( theseUtts )
-      sent = theseUtts ++ sent
+      val thisUtt = toSend.head //corpusPartitions.head
+      toSend = toSend.tail //corpusPartitions.tail
+      hmm ! EstimateUtterance( thisUtt )
+      sent = thisUtt :: sent
     }
   }
 
@@ -88,6 +88,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       hmms.foreach( _ ! Initialize )
       iterationStart
     }
+
     case pc:PartialCounts => {
       summingPartialCounts = summingPartialCounts + pc
       received += 1
@@ -95,6 +96,8 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
         iterationEnd
       } else {
         if( ! toSend.isEmpty ) {
+          if( received % 100 == 0 )
+            println( "Sending utt " + received + " of " + trainingData.size )
           val nextUtt = toSend.head
           toSend = toSend.tail
           self.reply( EstimateUtterance( nextUtt ) )
@@ -109,7 +112,8 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
         iterationEnd
       }
     }
-    case Randomize( centeredOn:Int) => randomize( centeredOn )
+    case Stop => exit
+    case Randomize( seed:Int, centeredOn:Int) => randomize( seed, centeredOn )
     case somethingElse:Any => println( "Manager got something else:\n" + somethingElse )
   }
 }
@@ -138,8 +142,8 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
   override def emEnd {
     viterbiHMM ! packageParameters
     viterbiHMM ! Viterbi( -1, testSet )
-    viterbiHMM ! Stop
-    exit
+    // viterbiHMM ! Stop
+    // exit()
   }
 
   override def iterationEnd {

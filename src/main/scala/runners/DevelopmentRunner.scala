@@ -40,7 +40,7 @@ object DevelopmentRunner {
 
     h.buildHMM( trainingData(0) )
 
-    h.randomize( 1 )
+    h.randomize( 15, 1 )
 
     println( h )
 
@@ -138,13 +138,6 @@ object CoupledDevelopmentRunner {
         }
       }
 
-      //val trainingData = io.Source.fromFile( dataPath ).getLines().toList.map(
-      //  _.split(" ").toList.map{ w =>
-      //    val Array( word, prosody ) = w.split( "#")
-      //    ObservedStatePair( word, prosody )
-      //  }
-      //).filter( _.size > 2 )
-
     val trainingData = io.Source.fromFile( dataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
         tokenized.tail.map{ w =>
@@ -172,8 +165,8 @@ object CoupledDevelopmentRunner {
     //println( trainingData )
 
 
-    val h = new CoupledHMM( hiddenStates, observationTypes )
-    h.randomize( 10 )
+    val h = new CoupledHMM( hiddenStates, observationTypes, "0" )
+    h.randomize( 15, 10 )
 
     println( "Hidden States:" )
     println( hiddenStates.mkString("","\n","\n\n" ) )
@@ -240,12 +233,6 @@ object ActorsDevelopmentRunner {
         }
       }
 
-        // val corpus = io.Source.fromFile( dataPath ).getLines().toList.map(
-        //   _.split(" ").toList.map{ w =>
-        //     val Array( word, prosody ) = w.split( "#")
-        //     ObservedStatePair( word, prosody )
-        //   }
-        // ).filter( _.size > 2 )
 
     val corpus = io.Source.fromFile( dataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
@@ -273,19 +260,19 @@ object ActorsDevelopmentRunner {
     val observationTypes = Set( corpus.flatten).flatten.toSet
 
     val manager = actorOf(
-      new CoupledHMM(hiddenStates,observationTypes) with HMMMaster[HiddenStatePair,ObservedStatePair]
+      new CoupledHMM(hiddenStates,observationTypes,"Master") with HMMMaster[HiddenStatePair,ObservedStatePair]
       with EvaluatingMaster[HiddenStatePair,ObservedStatePair] {
       val trainingData = corpus
       //var hmms = List[HMMActor[HiddenStatePair,ObservedStatePair]](
       var hmms = List[ActorRef](
-        actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet )
+        actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet, "0" )
           with HMMActor[HiddenStatePair,ObservedStatePair]).start,
         //new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
-        actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet ) with
+        actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet, "1") with
         HMMActor[HiddenStatePair,ObservedStatePair] ).start
       )
 
-      val viterbiHMM = actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet ) with
+      val viterbiHMM = actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet, "viterbi" ) with
       HMMActor[HiddenStatePair,ObservedStatePair] )
 
       val frequency = 4
@@ -297,7 +284,7 @@ object ActorsDevelopmentRunner {
     )
 
     manager.start
-    manager ! Randomize(10)
+    manager ! Randomize(15,10)
     manager ! Initialize
     println( "Starting HMM: ")
     //println( Manager )

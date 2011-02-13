@@ -2,19 +2,23 @@ package ProsodicParsing.HMMs
 
 import ProsodicParsing.types._
 import cc.mallet.types.LabelAlphabet
-import collection.immutable.HashMap
+//import collection.immutable.HashMap
 import cc.mallet.grmm.inference.JunctionTreeInferencer
 import cc.mallet.grmm._
 import cc.mallet.grmm.types._
 import cc.mallet.util.Maths
-import collection.mutable.{HashMap => MHashMap}
+import collection.mutable.HashMap
+//import collection.mutable.{HashMap => HashMap}
 
 
 class CoupledHMM(
   hiddenStateTypesSet:Set[HiddenStatePair],
-  observationTypesSet:Set[ObservedStatePair]
+  observationTypesSet:Set[ObservedStatePair],
+  idString:String
 ) extends AbstractHMM[HiddenStatePair,ObservedStatePair] (hiddenStateTypesSet,observationTypesSet) {
   import math.{log,exp}
+
+  val hmmID = idString
 
   val Tuple2( obsATypes, obsBTypes ) =
     observationTypesSet.map{ case ObservedStatePair( obs1, obs2 ) =>
@@ -41,8 +45,8 @@ class CoupledHMM(
 
   val hiddAlphA = new LabelAlphabet()
   val hiddAlphB = new LabelAlphabet()
-  val hiddAIndexToLabel = new MHashMap[Int,HiddenState]
-  val hiddBIndexToLabel = new MHashMap[Int,HiddenState]
+  val hiddAIndexToLabel = new HashMap[Int,HiddenState]
+  val hiddBIndexToLabel = new HashMap[Int,HiddenState]
   hiddATypes.toList.sortWith( (a,b) => a < b ).foreach( qA =>
     hiddAIndexToLabel( hiddAlphA.lookupIndex( qA , true ) ) = qA
   )
@@ -63,7 +67,7 @@ class CoupledHMM(
     }.toList
 
 
-  //def hiddenIndexToLabel( index:Int ) = HiddenStatePair("what","whoa")
+  val localUniverse = new Universe()
 
 
   /*
@@ -257,13 +261,13 @@ class CoupledHMM(
 
     stringLength = tokens.size
 
-    val hiddenVarA = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphA.size ) )
-    val hiddenVarB = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphB.size ) )
+    val hiddenVarA = Array.tabulate( tokens.size )( _ => new Variable( localUniverse, hiddAlphA.size ) )
+    val hiddenVarB = Array.tabulate( tokens.size )( _ => new Variable( localUniverse, hiddAlphB.size ) )
 
     hiddenVariables = hiddenVarA ++ hiddenVarB
 
-    val obsVarA = Array.tabulate( tokens.size )( _ => new Variable( obsAlphA.size ) )
-    val obsVarB = Array.tabulate( tokens.size )( _ => new Variable( obsAlphB.size ) )
+    val obsVarA = Array.tabulate( tokens.size )( _ => new Variable( localUniverse, obsAlphA.size ) )
+    val obsVarB = Array.tabulate( tokens.size )( _ => new Variable( localUniverse, obsAlphB.size ) )
 
     observations = obsVarA ++ obsVarB
 
@@ -485,13 +489,13 @@ class CoupledHMM(
 
     stringLength = tokens.size
 
-    val hiddenVarA = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphA.size ) )
-    val hiddenVarB = Array.tabulate( tokens.size )( _ => new Variable( hiddAlphB.size ) )
+    val hiddenVarA = Array.tabulate( tokens.size )( _ => new Variable( localUniverse, hiddAlphA.size ) )
+    val hiddenVarB = Array.tabulate( tokens.size )( _ => new Variable( localUniverse, hiddAlphB.size ) )
 
     hiddenVariables = hiddenVarA ++ hiddenVarB
 
-    val obsVarA = Array.tabulate( tokens.size )( _ => new Variable( obsAlphA.size ) )
-    val obsVarB = Array.tabulate( tokens.size )( _ => new Variable( obsAlphB.size ) )
+    val obsVarA = Array.tabulate( tokens.size )( _ => new Variable( localUniverse, obsAlphA.size ) )
+    val obsVarB = Array.tabulate( tokens.size )( _ => new Variable( localUniverse, obsAlphB.size ) )
 
     observations = obsVarA ++ obsVarB
 
@@ -619,15 +623,15 @@ class CoupledHMM(
   def reestimate( corpus: List[List[ObservedStatePair]] ) = {
     import math.exp
 
-    val corpusInitialStateCounts  = new MHashMap[HiddenStatePair,Double] {
+    val corpusInitialStateCounts  = new HashMap[HiddenStatePair,Double] {
       override def default( qs:HiddenStatePair ) = Double.NegativeInfinity
     }
 
-    val corpusTransitionCountsA = new MHashMap[HiddenStatePair,MHashMap[HiddenState,Double]] {
+    val corpusTransitionCountsA = new HashMap[HiddenStatePair,HashMap[HiddenState,Double]] {
       override def default( qsFrom:HiddenStatePair ) = {
         this += Pair(
           qsFrom,
-          new MHashMap[HiddenState,Double] {
+          new HashMap[HiddenState,Double] {
             override def default( qTo:HiddenState ) = {
               this += Pair( qTo, Double.NegativeInfinity )
               this(qTo)
@@ -638,11 +642,11 @@ class CoupledHMM(
       }
     }
 
-    val corpusTransitionCountsB = new MHashMap[HiddenStatePair,MHashMap[HiddenState,Double]] {
+    val corpusTransitionCountsB = new HashMap[HiddenStatePair,HashMap[HiddenState,Double]] {
       override def default( qsFrom:HiddenStatePair ) = {
         this += Pair(
           qsFrom,
-          new MHashMap[HiddenState,Double] {
+          new HashMap[HiddenState,Double] {
             override def default( qTo:HiddenState ) = {
               this += Pair( qTo, Double.NegativeInfinity )
               this(qTo)
@@ -653,11 +657,11 @@ class CoupledHMM(
       }
     }
 
-    val corpusEmissionCountsA = new MHashMap[HiddenState,MHashMap[ObservedState,Double]]{
+    val corpusEmissionCountsA = new HashMap[HiddenState,HashMap[ObservedState,Double]]{
       override def default( q:HiddenState ) = {
         this += Pair(
           q,
-          new MHashMap[ObservedState,Double]{
+          new HashMap[ObservedState,Double]{
             override def default( o:ObservedState ) = {
               this += Pair( o, Double.NegativeInfinity )
               this(o)
@@ -668,11 +672,11 @@ class CoupledHMM(
       }
     }
 
-    val corpusEmissionCountsB = new MHashMap[HiddenState,MHashMap[ObservedState,Double]]{
+    val corpusEmissionCountsB = new HashMap[HiddenState,HashMap[ObservedState,Double]]{
       override def default( q:HiddenState ) = {
         this += Pair(
           q,
-          new MHashMap[ObservedState,Double]{
+          new HashMap[ObservedState,Double]{
             override def default( o:ObservedState ) = {
               this += Pair( o, Double.NegativeInfinity )
               this(o)
@@ -697,16 +701,6 @@ class CoupledHMM(
         emissionCountsA,
         emissionCountsB
       ) = computePartialCounts( string )
-
-      //println( "stringLogProb" )
-      //println( stringLogProb )
-      //println( "transitionCountsA" )
-      //println( transitionCountsA )
-
-      //if( n % 10 == 0 )
-      //  println( n + ": " + string.length )
-
-      //n += 1
 
       // Sum totals for this string
       assert( transitionCountsA.keySet == transitionCountsB.keySet )
@@ -844,16 +838,16 @@ class CoupledHMM(
 
     inferencer.computeMarginals( hmm )
 
-    val initialStateCounts = MHashMap(
+    val initialStateCounts = HashMap(
       hiddenStateTypes.map{ qs =>
         qs ->  Double.NegativeInfinity
       }.toSeq:_*
     )
 
 
-    val emissionCountsA = MHashMap(
+    val emissionCountsA = HashMap(
       hiddATypes.map{ q =>
-        q -> MHashMap(
+        q -> HashMap(
           obsATypes.map{ obs =>
             obs -> Double.NegativeInfinity
           }.toSeq:_*
@@ -861,9 +855,9 @@ class CoupledHMM(
       }.toSeq:_*
     )
 
-    val emissionCountsB = MHashMap(
+    val emissionCountsB = HashMap(
       hiddBTypes.map{ q =>
-        q -> MHashMap(
+        q -> HashMap(
           obsBTypes.map{ obs =>
             obs -> Double.NegativeInfinity
           }.toSeq:_*
@@ -871,9 +865,9 @@ class CoupledHMM(
       }.toSeq:_*
     )
 
-    val transitionCountsA = MHashMap(
+    val transitionCountsA = HashMap(
       hiddenStateTypes.map{ qsFrom =>
-        qsFrom -> MHashMap(
+        qsFrom -> HashMap(
           hiddATypes.map{ qTo =>
             qTo -> Double.NegativeInfinity
           }.toSeq:_*
@@ -881,9 +875,9 @@ class CoupledHMM(
       }.toSeq:_*
     )
 
-    val transitionCountsB = MHashMap(
+    val transitionCountsB = HashMap(
       hiddenStateTypes.map{ qsFrom =>
-        qsFrom -> MHashMap(
+        qsFrom -> HashMap(
           hiddBTypes.map{ qTo =>
             qTo -> Double.NegativeInfinity
           }.toSeq:_*
@@ -999,52 +993,11 @@ class CoupledHMM(
     //println( "\n\nAbout to hit the doozy?" )
     CoupledHMMPartialCounts(
       generalProbability( tokens ),
-      HashMap(
-        initialStateCounts.keySet.map{ qsFrom =>
-          qsFrom -> initialStateCounts(qsFrom)
-        }.toSeq:_*
-      ),
-      //HashMap(
-      //  initialStateCountsB.keySet.map{ qFrom =>
-      //    qFrom -> initialStateCountsB(qFrom)
-      //  }.toSeq:_*
-      //),
-      HashMap(
-        transitionCountsA.keySet.map{ qsFrom =>
-          qsFrom -> HashMap(
-            transitionCountsA(qsFrom).keySet.map{ qTo =>
-              qTo -> transitionCountsA(qsFrom)(qTo)
-            }.toSeq:_*
-          )
-        }.toSeq:_*
-      ),
-      HashMap(
-        transitionCountsB.keySet.map{ qsFrom =>
-          qsFrom -> HashMap(
-            transitionCountsB(qsFrom).keySet.map{ qTo =>
-              qTo -> transitionCountsB(qsFrom)(qTo)
-            }.toSeq:_*
-          )
-        }.toSeq:_*
-      ),
-      HashMap(
-        emissionCountsA.keySet.map{ q =>
-          q -> HashMap(
-            emissionCountsA(q).keySet.map{ obs =>
-              obs -> emissionCountsA(q)(obs)
-            }.toSeq:_*
-          )
-        }.toSeq:_*
-      ),
-      HashMap(
-        emissionCountsB.keySet.map{ q =>
-          q -> HashMap(
-            emissionCountsB(q).keySet.map{ obs =>
-              obs -> emissionCountsB(q)(obs)
-            }.toSeq:_*
-          )
-        }.toSeq:_*
-      )
+      initialStateCounts,
+      transitionCountsA,
+      transitionCountsB,
+      emissionCountsA,
+      emissionCountsB
     )
   }
 

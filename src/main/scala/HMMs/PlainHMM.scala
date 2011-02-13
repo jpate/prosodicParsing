@@ -8,8 +8,9 @@ import cc.mallet.grmm.inference.ForwardBackwardInferencer
 import cc.mallet.grmm.inference.JunctionTreeInferencer
 import cc.mallet.grmm.inference.JunctionTreeInferencer._
 import cc.mallet.util.Maths
-import scala.collection.immutable.{HashMap,HashSet}
-import scala.collection.mutable.{HashMap => MHashMap}
+//import scala.collection.immutable.{HashMap,HashSet}
+import scala.collection.mutable.{HashMap,HashSet}
+//import scala.collection.mutable.{HashMap => HashMap}
 
 class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[ObservedState] )
   extends AbstractHMM[HiddenState,ObservedState] (hiddenStateTypesSet, observationTypesSet) {
@@ -19,7 +20,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
   observationTypes.foreach( observationAlphabet.lookupIndex( _, true ) )
 
-  val hiddenStateIndexToLabel = new MHashMap[Int,HiddenState]
+  val hiddenStateIndexToLabel = new HashMap[Int,HiddenState]
   hiddenStateTypes.foreach( q =>
     hiddenStateIndexToLabel( hiddenStateAlphabet.lookupIndex( q, true ) ) = q
   )
@@ -254,13 +255,13 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     //println( "calling computeMarginals from within computePartialCounts directly" );
     inferencer.computeMarginals( hmm )
 
-    val initialStateCounts = MHashMap(
+    val initialStateCounts = HashMap(
       hiddenStateTypes.map{ _ -> Double.NegativeInfinity }.toSeq:_*
     )
 
-    val emissionCounts = MHashMap(
+    val emissionCounts = HashMap(
       hiddenStateTypes.map{ q =>
-        q -> MHashMap(
+        q -> HashMap(
           observationTypes.map{ obs =>
             obs -> Double.NegativeInfinity
           }.toSeq:_*
@@ -268,9 +269,9 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       }.toSeq:_*
     )
 
-    val transitionCounts = MHashMap(
+    val transitionCounts = HashMap(
       hiddenStateTypes.map{ qFrom =>
-        qFrom -> MHashMap(
+        qFrom -> HashMap(
           hiddenStateTypes.map{ qTo =>
             qTo -> Double.NegativeInfinity
           }.toSeq:_*
@@ -360,15 +361,15 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
     import math.{log,exp}
 
     var corpusInitialStateDenominator = Double.NegativeInfinity
-    val corpusInitialStateCounts = new MHashMap[HiddenState,Double]{
+    val corpusInitialStateCounts = new HashMap[HiddenState,Double]{
       override def default( q:HiddenState ) = Double.NegativeInfinity
     }
 
-    val corpusTransitionCounts = new MHashMap[HiddenState,MHashMap[HiddenState,Double]]{
+    val corpusTransitionCounts = new HashMap[HiddenState,HashMap[HiddenState,Double]]{
       override def default( qFrom:HiddenState ) = {
         this += Pair(
           qFrom,
-          new MHashMap[HiddenState,Double]{
+          new HashMap[HiddenState,Double]{
             override def default( qTo:HiddenState ) = {
               this += Pair( qTo, Double.NegativeInfinity )
               this(qTo)
@@ -379,15 +380,15 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       }
     }
 
-    val corpusTransitionDenominator = new MHashMap[HiddenState,Double]{
+    val corpusTransitionDenominator = new HashMap[HiddenState,Double]{
       override def default( qFrom:HiddenState ) = Double.NegativeInfinity
     }
 
-    val corpusEmissionCounts = new MHashMap[HiddenState,MHashMap[ObservedState,Double]]{
+    val corpusEmissionCounts = new HashMap[HiddenState,HashMap[ObservedState,Double]]{
       override def default( q:HiddenState ) = {
         this += Pair(
           q,
-          new MHashMap[ObservedState,Double]{
+          new HashMap[ObservedState,Double]{
             override def default( o:ObservedState ) = {
               this += Pair( o, Double.NegativeInfinity )
               this(o)
@@ -398,7 +399,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
       }
     }
 
-    val corpusEmissionDenominator = new MHashMap[HiddenState,Double]{
+    val corpusEmissionDenominator = new HashMap[HiddenState,Double]{
       override def default( q:HiddenState ) = Double.NegativeInfinity
     }
 
@@ -417,15 +418,15 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
 
       var stringInitialStateDenominator = Double.NegativeInfinity
 
-      val stringInitialStateCounts = new MHashMap[HiddenState,Double]{
+      val stringInitialStateCounts = new HashMap[HiddenState,Double]{
         override def default( q:HiddenState ) = Double.NegativeInfinity
       }
 
-      val stringTransitionCounts = new MHashMap[HiddenState,MHashMap[HiddenState,Double]]{
+      val stringTransitionCounts = new HashMap[HiddenState,HashMap[HiddenState,Double]]{
         override def default( qFrom:HiddenState ) = {
           this += Pair(
             qFrom,
-            new MHashMap[HiddenState,Double]{
+            new HashMap[HiddenState,Double]{
               override def default( qTo:HiddenState ) = {
                 this += Pair( qTo, Double.NegativeInfinity )
                 this(qTo)
@@ -436,15 +437,15 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         }
       }
 
-      val stringTransitionDenominator = new MHashMap[HiddenState,Double]{
+      val stringTransitionDenominator = new HashMap[HiddenState,Double]{
         override def default( qFrom:HiddenState ) = Double.NegativeInfinity
       }
 
-      val stringEmissionCounts = new MHashMap[HiddenState,MHashMap[ObservedState,Double]]{
+      val stringEmissionCounts = new HashMap[HiddenState,HashMap[ObservedState,Double]]{
         override def default( q:HiddenState ) = {
           this += Pair(
             q,
-            new MHashMap[ObservedState,Double]{
+            new HashMap[ObservedState,Double]{
               override def default( o:ObservedState ) = {
                 this += Pair( o, Double.NegativeInfinity )
                 this(o)
@@ -455,7 +456,7 @@ class PlainHMM( hiddenStateTypesSet:Set[HiddenState], observationTypesSet:Set[Ob
         }
       }
 
-      val stringEmissionDenominator = new MHashMap[HiddenState,Double]{
+      val stringEmissionDenominator = new HashMap[HiddenState,Double]{
         override def default( q:HiddenState ) = Double.NegativeInfinity
       }
 

@@ -13,12 +13,13 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
   def argmax( corpus:List[O] ):List[Q]
   def normalize:Unit
   def initialPartialCounts:PartialCounts
-  def randomize(n:Int):Unit
+  def randomize(seed:Int,centeredOn:Int):Unit
 
+  val hmmID:String
 
   def receive = {
     case Initialize => {
-      println( "Starting..." )
+      println( "HMM " + hmmID + " starting..." )
     }
     case parameters:Parameters => {
       println( "Got parameters" )
@@ -26,33 +27,36 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       normalize
     }
     case EstimateCorpus( corpus:List[List[O]] ) => {
-      println( "Got a (sub?)corpus" )
+      println( "HMM " + hmmID + " got a (sub?)corpus" )
       var summingPartialCounts:PartialCounts = initialPartialCounts
       var n = 0
       corpus.foreach{ s =>
         n = n + 1
-        if ( n % 10 == 0 )
+        if ( n % 100 == 0 )
           println(
-            "HMM " + self.uuid + " processing sentence " + n + " of " + corpus.size
+            "HMM " + hmmID + " processing sentence " + n + " of " + corpus.size
           )
         summingPartialCounts = summingPartialCounts + computePartialCounts( s )
       }
       self.reply( Tuple2( corpus.size, summingPartialCounts ) )
     }
     case EstimateUtterance( utt:List[O] ) => {
-      println( "Got an utterance: " + utt )
+      //println( "HMM " + hmmID + " got an utterance: " + utt )
       self.reply( computePartialCounts(utt) )
     }
     case Viterbi( iteration, corpus ) => {
-      println( "Got Viterbi" )
+      println(  "HMM " + hmmID + " got Viterbi" )
       corpus.foreach{ case ViterbiString(label, string:List[O] ) =>
         println( "it"+iteration + "," + label + "," + argmax( string ).mkString(""," ","") )
       }
+      if( iteration == -1 ) {
+        self.reply( Stop )
+        exit
+      }
     }
-    case Stop => exit()
-    case somethingElse:Any => println( "Slave got something else:\n" + somethingElse )
+    case Stop => exit
+    case somethingElse:Any => println( "Slave HMM " + hmmID + " got something else:\n" + somethingElse )
   }
 }
 
-case object Stop
 

@@ -21,8 +21,8 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
 
   val numHiddenStates = hiddenStateTypes.size
 
-  def randomize( n:Int ) {
-    parameters.foreach( _.randomize( n ) )
+  def randomize( seed:Int, centeredOn:Int ) {
+    parameters.foreach( _.randomize( seed, centeredOn ) )
   }
 
   def normalize {

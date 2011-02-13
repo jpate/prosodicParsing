@@ -1,7 +1,10 @@
 package ProsodicParsing.types
-import scala.collection.immutable.HashMap
+//import scala.collection.immutable.HashMap
+import scala.collection.mutable.HashMap
 //import ProsodicParsing.util.Util
 import cc.mallet.util.Maths
+import gnu.trove.map.hash.TObjectObjectHashMap
+import gnu.trove.map.hash.TObjectDoubleHashMap
 import math.{exp,log}
 
 
@@ -29,7 +32,7 @@ case class ObservedStatePair( obs1:String, obs2:String )
   extends ObservedLabel( obs1+"^"+obs2 ) with StatePair
 
 abstract class AbstractDistribution {
-  def randomize(n:Int):Unit
+  def randomize(seed:Int,centeredOn:Int):Unit
   def normalize:Unit
   def scale(n:Int):Unit
   def deScale(n:Int):Unit
@@ -60,8 +63,7 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
     )
   }
 
-  val seed = 15
-  def randomize( centeredOn:Int ) {
+  def randomize( seed:Int, centeredOn:Int ) {
     import scala.util.Random
     val r = new Random( seed )
 
@@ -148,8 +150,7 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
     )
   }
 
-  val seed = 15
-  def randomize( centeredOn:Int ) {
+  def randomize( seed:Int, centeredOn:Int ) {
     import scala.util.Random
     val r = new Random( seed )
 
@@ -302,8 +303,7 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
   //   )
   // }
 
-  val seed = 15
-  def randomize( centeredOn:Int ) {
+  def randomize( seed:Int, centeredOn:Int ) {
     import scala.util.Random
     val r = new Random( seed )
 
@@ -421,8 +421,7 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
     )
   }
 
-  val seed = 15
-  def randomize( centeredOn:Int ) {
+  def randomize( seed:Int, centeredOn:Int ) {
     import scala.util.Random
     val r = new Random( seed )
 
@@ -626,7 +625,10 @@ case class ViterbiString( stringLabel:String, string:List[ObservedLabel] ) {
 
 case class Viterbi( iterationCount:Int, vit:List[ViterbiString] )
 
-case class Randomize( centeredOn:Int )
+case class Randomize( seed:Int, centeredOn:Int )
 
 case object Initialize
 
+case object EMEnd
+
+case object Stop

@@ -31,7 +31,6 @@ case class ObservedStatePair( obs1:String, obs2:String )
 
 abstract class AbstractDistribution {
   def randomize(seed:Int,centeredOn:Int):Unit
-  def randomize(seed:Int, centeredOn:Int, zeros:List[Tuple2[HiddenStatePair,HiddenState]]):Unit
   def normalize:Unit
 }
 
@@ -80,25 +79,6 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
     normalize
   }
 
-  def randomize( seed:Int, centeredOn:Int, zeroTransitions:List[Tuple2[HiddenStatePair,HiddenState]] ) {
-    import scala.util.Random
-    val r = new Random( seed )
-
-    cpt = HashMap(
-      cpt.keySet.map{ parent =>
-        parent -> HashMap(
-          cpt(parent).keySet.map{ child =>
-            if( zeroTransitions.contains( Tuple2( parent, child ) ) )
-              child -> 0D
-            else
-              child -> ( r.nextDouble + centeredOn )
-          }.toSeq:_*
-        )
-      }.toSeq:_*
-    )
-
-    normalize
-  }
 
 
   def toArray = {
@@ -118,7 +98,7 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
   }.mkString("","\n","\n")
 }
 
-abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
+abstract class AbstractConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
   import math.{exp,log}
 
   var cpt:HashMap[T,HashMap[U,Double]]
@@ -150,23 +130,12 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
     )
   }
 
-  def randomize( seed:Int, centeredOn:Int, zeroTransitions:List[Tuple2[HiddenStatePair,HiddenState]] ) {
-    import scala.util.Random
-    val r = new Random( seed )
+  private def zeroOut( from:T, to:U ) = {
+    cpt(from)(to) = Double.NegativeInfinity
+  }
 
-    cpt = HashMap(
-      cpt.keySet.map{ parent =>
-        parent -> HashMap(
-          cpt(parent).keySet.map{ child =>
-            if( zeroTransitions.contains( Tuple2( parent,child ) ) )
-              child -> Double.NegativeInfinity
-            else
-              child -> ( log( r.nextDouble + centeredOn ) )
-          }.toSeq:_*
-        )
-      }.toSeq:_*
-    )
-
+  def zeroAll( toZero:Set[Tuple2[T,U]] ) {
+    toZero.foreach{ case( from, to ) => zeroOut( from, to ) }
     normalize
   }
 
@@ -212,8 +181,49 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
   }.mkString("","\n","\n")
 }
 
-abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution {
-  //protected[this] var pt:HashMap[T,Double]
+class ConditionalLogProbabilityDistribution[T<:Label,U<:Label]( parents:Set[T], children:Set[U] )
+  extends AbstractConditionalLogProbabilityDistribution[T,U] {
+  var cpt = HashMap(
+    parents.map( parent =>
+        parent -> (
+          HashMap(
+            children.map( child =>
+              child -> log( 1D/children.size )
+            ).toSeq: _*
+          )
+        )
+      ).toSeq: _*
+    )
+}
+
+/*
+class LogProbDistWithStructuralZeros[T,U]( zeros:Set[Tuple2[T,U]], )
+  extends ConditionalLogProbabilityDistribution[T,U] {
+  var cpt:HashMap[T,HashMap[U,Double]]
+
+  override def randomize( seed:Int, centeredOn:Int ) {
+    import scala.util.Random
+    val r = new Random( seed )
+
+    cpt = HashMap(
+      cpt.keySet.map{ parent =>
+        parent -> HashMap(
+          cpt(parent).keySet.map{ child =>
+            if( zeros.contains( Tuple2( parent, child ) ) )
+              child -> Double.NegativeInfinity
+            else
+              child -> ( log( r.nextDouble + centeredOn ) )
+          }.toSeq:_*
+        )
+      }.toSeq:_*
+    )
+
+    normalize
+  }
+}
+*/
+
+abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDistribution {
   var pt:HashMap[T,Double]
 
   def setPT( updatedPT: HashMap[T,Double] ) {
@@ -221,7 +231,7 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
   }
 
   def *[U<:Label]( otherCPT: ConditionalLogProbabilityDistribution[T,U] ) =
-    new ConditionalLogProbabilityDistribution[T,U] {
+    new AbstractConditionalLogProbabilityDistribution[T,U] {
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (
@@ -249,70 +259,17 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
       )
     }
 
-  //type U<:Label
-  /*
-  def *( otherPT: ProbabilityDistribution[HiddenState] ):ProbabilityDistribution[HiddenStatePair] = {
-    val newPT = HashMap{
-        keySet.flatMap{ x =>
-          otherPT.domain.map{ y =>
-            //HiddenStatePair(x.s, y) ->  apply(x) * otherPT(y)
-            (y * x) ->  apply(x) * otherPT(y)
-          }
-        }.toSeq:_*
-      }
-
-    new ProbabilityDistribution[HiddenStatePair] {
-      //assert( domain == otherPT.domain )
-      var pt = newPT
-    }
-  }
-  */
-
-  def domain = pt.keySet
-
-
   def normalize {
     val max = pt.values.reduceLeft( Maths.sumLogProb( _ , _) )
 
-    //val singleSupport = pt.values.exists( _ == 0D )
-
     pt = HashMap(
       pt.keySet.map{ parent =>
-        //if( singleSupport )
-        //  if( pt(parent) == 0D )
-        //    parent -> 0D
-        //  else
-        //    parent -> Double.NegativeInfinity
-        //else
-          if( max == Double.NegativeInfinity )
-            parent -> Double.NegativeInfinity
-          else
-            parent -> ( pt(parent) - max )
+        if( max == Double.NegativeInfinity )
+          parent -> Double.NegativeInfinity
+        else
+          parent -> ( pt(parent) - max )
       }.toSeq:_*
     )
-  }
-
-  // def normalize {
-  //   val max = Maths.sumLogProb( pt.values.toList )
-
-  //   pt = HashMap(
-  //     pt.keySet.map{ parent =>
-  //       parent -> ( pt(parent) - max )
-  //     }.toSeq:_*
-  //   )
-  // }
-
-  def randomize( seed:Int, centeredOn:Int, zeros:List[Tuple2[HiddenStatePair,HiddenState]] ) {
-    import scala.util.Random
-    val r = new Random( seed )
-
-    pt = HashMap(
-      pt.keySet.map{ parent =>
-        parent ->  ( log( r.nextDouble + centeredOn ) )
-      }.toSeq:_*
-    )
-
-    normalize
   }
 
   def randomize( seed:Int, centeredOn:Int ) {
@@ -337,6 +294,14 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
   }.mkString("\n\t","\n\t","\n")
 }
 
+class LogProbabilityDistribution[T<:Label]( domain:Set[T] ) extends AbstractLogProbabilityDistribution[T] {
+    var pt = HashMap(
+      domain.map( element =>
+        element -> log( 1D/ domain.size )
+      ).toSeq: _*
+    )
+}
+
 
 abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
   var pt:HashMap[T,Double]
@@ -346,7 +311,7 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
   }
 
   def *[U<:Label]( otherCPT: ConditionalLogProbabilityDistribution[T,U] ) =
-    new ConditionalLogProbabilityDistribution[T,U] {
+    new AbstractConditionalLogProbabilityDistribution[T,U] {
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (
@@ -371,24 +336,6 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
       )
     }
 
-  //type U<:Label
-  /*
-  def *( otherPT: ProbabilityDistribution[HiddenState] ):ProbabilityDistribution[HiddenStatePair] = {
-    val newPT = HashMap{
-        keySet.flatMap{ x =>
-          otherPT.domain.map{ y =>
-            //HiddenStatePair(x.s, y) ->  apply(x) * otherPT(y)
-            (y * x) ->  apply(x) * otherPT(y)
-          }
-        }.toSeq:_*
-      }
-
-    new ProbabilityDistribution[HiddenStatePair] {
-      //assert( domain == otherPT.domain )
-      var pt = newPT
-    }
-  }
-  */
 
   def domain = pt.keySet
 
@@ -402,19 +349,6 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
           parent -> pt(parent) / max
       }.toSeq:_*
     )
-  }
-
-  def randomize( seed:Int, centeredOn:Int, zeros:List[Tuple2[HiddenStatePair,HiddenState]] ) {
-    import scala.util.Random
-    val r = new Random( seed )
-
-    pt = HashMap(
-      pt.keySet.map{ parent =>
-        parent ->  ( r.nextDouble + centeredOn )
-      }.toSeq:_*
-    )
-
-    normalize
   }
 
   def randomize( seed:Int, centeredOn:Int ) {
@@ -623,10 +557,11 @@ case class Viterbi( iterationCount:Int, vit:List[ViterbiString] )
 
 case class Randomize( seed:Int, centeredOn:Int )
 
-case class RandomizeWithZeros( seed:Int, centeredOn:Int , zeros:List[Tuple2[HiddenStatePair,HiddenState]] )
-
 case object Initialize
 
 case object EMEnd
 
 case object Stop
+
+case class ZeroOut( toZero: Set[Tuple2[Label,Label]] )
+

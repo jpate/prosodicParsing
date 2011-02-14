@@ -27,6 +27,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
   def initialPartialCounts:PartialCounts
   def randomize(seed:Int, centeredOn:Int):Unit
+  def randomize(seed:Int, centeredOn:Int, zeroTransitions:List[Tuple2[HiddenStatePair,HiddenState]]):Unit
 
   var summingPartialCounts = initialPartialCounts
 
@@ -41,14 +42,24 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
     summingPartialCounts = initialPartialCounts
 
-    //var corpusPartitions = toSend.grouped( toSend.size/hmms.size  + 1 ).toList
+    println( "At iteration start, we are: " + toString )
+
     hmms.foreach{ hmm =>
       hmm ! packageParameters
-      val thisUtt = toSend.head //corpusPartitions.head
-      toSend = toSend.tail //corpusPartitions.tail
+      val thisUtt = toSend.head
+      toSend = toSend.tail
       hmm ! EstimateUtterance( thisUtt )
       sent = thisUtt :: sent
     }
+
+    // var corpusPartitions = toSend.grouped( toSend.size/hmms.size  + 1 ).toList
+    // hmms.foreach{ hmm =>
+    //   hmm ! packageParameters
+    //   val theseUtts = corpusPartitions.head
+    //   corpusPartitions = corpusPartitions.tail
+    //   hmm ! EstimateCorpus( theseUtts )
+    //   sent = theseUtts ++ sent
+    // }
   }
 
   def emEnd {
@@ -114,6 +125,8 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
     }
     case Stop => exit
     case Randomize( seed:Int, centeredOn:Int) => randomize( seed, centeredOn )
+    case RandomizeWithZeros( seed:Int, centeredOn:Int, zeroTransitions:List[Tuple2[HiddenStatePair,HiddenState]] ) =>
+      randomize( seed, centeredOn, zeroTransitions)
     case somethingElse:Any => println( "Manager got something else:\n" + somethingElse )
   }
 }

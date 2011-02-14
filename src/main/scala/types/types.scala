@@ -3,8 +3,6 @@ package ProsodicParsing.types
 import scala.collection.mutable.HashMap
 //import ProsodicParsing.util.Util
 import cc.mallet.util.Maths
-import gnu.trove.map.hash.TObjectObjectHashMap
-import gnu.trove.map.hash.TObjectDoubleHashMap
 import math.{exp,log}
 
 
@@ -33,9 +31,8 @@ case class ObservedStatePair( obs1:String, obs2:String )
 
 abstract class AbstractDistribution {
   def randomize(seed:Int,centeredOn:Int):Unit
+  def randomize(seed:Int, centeredOn:Int, zeros:List[Tuple2[HiddenStatePair,HiddenState]]):Unit
   def normalize:Unit
-  def scale(n:Int):Unit
-  def deScale(n:Int):Unit
 }
 
 abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
@@ -56,7 +53,10 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
       cpt.keySet.map{ parent =>
         parent -> HashMap(
           cpt(parent).keySet.map{ child =>
-            child -> cpt(parent)(child) / maxes(parent)
+            if( maxes(parent) == 0D )
+              child -> 0D
+            else
+              child -> cpt(parent)(child) / maxes(parent)
           }.toSeq:_*
         )
       }.toSeq:_*
@@ -80,29 +80,26 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
     normalize
   }
 
-  def scale( n:Int ) {
+  def randomize( seed:Int, centeredOn:Int, zeroTransitions:List[Tuple2[HiddenStatePair,HiddenState]] ) {
+    import scala.util.Random
+    val r = new Random( seed )
+
     cpt = HashMap(
       cpt.keySet.map{ parent =>
         parent -> HashMap(
           cpt(parent).keySet.map{ child =>
-            child -> ( cpt(parent)(child) * n )
+            if( zeroTransitions.contains( Tuple2( parent, child ) ) )
+              child -> 0D
+            else
+              child -> ( r.nextDouble + centeredOn )
           }.toSeq:_*
         )
       }.toSeq:_*
     )
+
+    normalize
   }
 
-  def deScale( n:Int ) {
-    cpt = HashMap(
-      cpt.keySet.map{ parent =>
-        parent -> HashMap(
-          cpt(parent).keySet.map{ child =>
-            child -> ( cpt(parent)(child) / n )
-          }.toSeq:_*
-        )
-      }.toSeq:_*
-    )
-  }
 
   def toArray = {
     cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
@@ -143,11 +140,34 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
       cpt.keySet.map{ parent =>
         parent -> HashMap(
           cpt(parent).keySet.map{ child =>
-            child -> ( cpt(parent)(child) - maxes(parent) )
+            if( maxes( parent ) == Double.NegativeInfinity )
+              child -> Double.NegativeInfinity
+            else
+              child -> ( cpt(parent)(child) - maxes(parent) )
           }.toSeq:_*
         )
       }.toSeq:_*
     )
+  }
+
+  def randomize( seed:Int, centeredOn:Int, zeroTransitions:List[Tuple2[HiddenStatePair,HiddenState]] ) {
+    import scala.util.Random
+    val r = new Random( seed )
+
+    cpt = HashMap(
+      cpt.keySet.map{ parent =>
+        parent -> HashMap(
+          cpt(parent).keySet.map{ child =>
+            if( zeroTransitions.contains( Tuple2( parent,child ) ) )
+              child -> Double.NegativeInfinity
+            else
+              child -> ( log( r.nextDouble + centeredOn ) )
+          }.toSeq:_*
+        )
+      }.toSeq:_*
+    )
+
+    normalize
   }
 
   def randomize( seed:Int, centeredOn:Int ) {
@@ -165,30 +185,6 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
     )
 
     normalize
-  }
-
-  def deScale( n:Int ) {
-    cpt = HashMap(
-      cpt.keySet.map{ parent =>
-        parent -> HashMap(
-          cpt(parent).keySet.map{ child =>
-            child -> ( cpt(parent)(child) - log( n ) )
-          }.toSeq:_*
-        )
-      }.toSeq:_*
-    )
-  }
-
-  def scale( n:Int ) {
-    cpt = HashMap(
-      cpt.keySet.map{ parent =>
-        parent -> HashMap(
-          cpt(parent).keySet.map{ child =>
-            child -> ( cpt(parent)(child) + log( n ) )
-          }.toSeq:_*
-        )
-      }.toSeq:_*
-    )
   }
 
   def toArray = {
@@ -288,7 +284,10 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
         //  else
         //    parent -> Double.NegativeInfinity
         //else
-          parent -> ( pt(parent) - max )
+          if( max == Double.NegativeInfinity )
+            parent -> Double.NegativeInfinity
+          else
+            parent -> ( pt(parent) - max )
       }.toSeq:_*
     )
   }
@@ -303,7 +302,7 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
   //   )
   // }
 
-  def randomize( seed:Int, centeredOn:Int ) {
+  def randomize( seed:Int, centeredOn:Int, zeros:List[Tuple2[HiddenStatePair,HiddenState]] ) {
     import scala.util.Random
     val r = new Random( seed )
 
@@ -316,20 +315,17 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
     normalize
   }
 
-  def scale( n:Int ) {
-    pt = HashMap(
-      pt.keySet.map{ parent =>
-        parent ->  ( pt(parent) + log( n ) )
-      }.toSeq:_*
-    )
-  }
+  def randomize( seed:Int, centeredOn:Int ) {
+    import scala.util.Random
+    val r = new Random( seed )
 
-  def deScale( n:Int ) {
     pt = HashMap(
       pt.keySet.map{ parent =>
-        parent ->  ( pt(parent) - log( n ) )
+        parent ->  ( log( r.nextDouble + centeredOn ) )
       }.toSeq:_*
     )
+
+    normalize
   }
 
   def toArray = pt.keySet.toList.sortWith( (a,b) => a < b ).map( k => exp( pt(k) ) ).toArray
@@ -400,25 +396,25 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
     val max = pt.values.sum
     pt = HashMap(
       pt.keySet.map{ parent =>
-        parent -> pt(parent) / max
+        if( max == 0D )
+          parent -> 0D
+        else
+          parent -> pt(parent) / max
       }.toSeq:_*
     )
   }
 
-  def scale(n:Int) {
-    pt = HashMap(
-      pt.keySet.map{ parent =>
-        parent -> pt(parent) * n
-      }.toSeq:_*
-    )
-  }
+  def randomize( seed:Int, centeredOn:Int, zeros:List[Tuple2[HiddenStatePair,HiddenState]] ) {
+    import scala.util.Random
+    val r = new Random( seed )
 
-  def deScale(n:Int) {
     pt = HashMap(
       pt.keySet.map{ parent =>
-        parent -> pt(parent) / n
+        parent ->  ( r.nextDouble + centeredOn )
       }.toSeq:_*
     )
+
+    normalize
   }
 
   def randomize( seed:Int, centeredOn:Int ) {
@@ -626,6 +622,8 @@ case class ViterbiString( stringLabel:String, string:List[ObservedLabel] ) {
 case class Viterbi( iterationCount:Int, vit:List[ViterbiString] )
 
 case class Randomize( seed:Int, centeredOn:Int )
+
+case class RandomizeWithZeros( seed:Int, centeredOn:Int , zeros:List[Tuple2[HiddenStatePair,HiddenState]] )
 
 case object Initialize
 

@@ -27,7 +27,7 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       normalize
     }
     case EstimateCorpus( corpus:List[List[O]] ) => {
-      println( "HMM " + hmmID + " got a (sub?)corpus" )
+      println( "HMM " + hmmID + " got a (sub?)corpus with " + corpus.size + " utterances" )
       var summingPartialCounts:PartialCounts = initialPartialCounts
       var n = 0
       corpus.foreach{ s =>
@@ -47,11 +47,12 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
     case Viterbi( iteration, corpus ) => {
       println(  "HMM " + hmmID + " got Viterbi" )
       corpus.foreach{ case ViterbiString(label, string:List[O] ) =>
+        println( "Viterbi for " + string + " is: " )
         println( "it"+iteration + "," + label + "," + argmax( string ).mkString(""," ","") )
       }
       if( iteration == -1 ) {
         self.reply( Stop )
-        exit
+        //exit
       }
     }
     case Stop => exit

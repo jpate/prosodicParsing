@@ -25,6 +25,10 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
     parameters.foreach( _.randomize( seed, centeredOn ) )
   }
 
+  def randomize( seed:Int, centeredOn:Int, zeroTransitions:List[Tuple2[HiddenStatePair,HiddenState]] ) {
+    parameters.foreach( _.randomize( seed, centeredOn , zeroTransitions) )
+  }
+
   def normalize {
     parameters.foreach( _.normalize )
   }

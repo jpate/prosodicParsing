@@ -51,14 +51,14 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       sent = thisUtt :: sent
     }
 
-    // var corpusPartitions = toSend.grouped( toSend.size/hmms.size  + 1 ).toList
-    // hmms.foreach{ hmm =>
-    //   hmm ! packageParameters
-    //   val theseUtts = corpusPartitions.head
-    //   corpusPartitions = corpusPartitions.tail
-    //   hmm ! EstimateCorpus( theseUtts )
-    //   sent = theseUtts ++ sent
-    // }
+      // var corpusPartitions = toSend.grouped( toSend.size/hmms.size  + 1 ).toList
+      // hmms.foreach{ hmm =>
+      //   hmm ! packageParameters
+      //   val theseUtts = corpusPartitions.head
+      //   corpusPartitions = corpusPartitions.tail
+      //   hmm ! EstimateCorpus( theseUtts )
+      //   sent = theseUtts ++ sent
+      // }
   }
 
   def emEnd {
@@ -122,7 +122,10 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
         iterationEnd
       }
     }
-    case Stop => exit
+    case Stop => {
+      hmms.foreach{_.stop}
+      //exit
+    }
     case Randomize( seed:Int, centeredOn:Int) => randomize( seed, centeredOn )
     case somethingElse:Any => println( "Manager got something else:\n" + somethingElse )
   }
@@ -152,8 +155,6 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
   override def emEnd {
     viterbiHMM ! packageParameters
     viterbiHMM ! Viterbi( -1, testSet )
-    // viterbiHMM ! Stop
-    // exit()
   }
 
   override def iterationEnd {
@@ -173,7 +174,7 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
     println( "iteration " + iterationCount + ": " + corpusLogProb+ " (" + deltaLogProb +")" )
     if( converged( iterationCount, deltaLogProb ) ) {
       println( "EM Done! final HMM:\n\n" + toString )
-      hmms.foreach( _ ! Stop )
+      //hmms.foreach( _.stop )
       emEnd
     } else {
       lastCorpusLogProb = corpusLogProb

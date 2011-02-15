@@ -56,18 +56,6 @@ class CoupledHMM(
     hiddBIndexToLabel( hiddAlphB.lookupIndex( qB, true ) ) = qB
   )
 
-  println(
-    hiddATypes.toList.sortWith( (a,b) => a < b ).map{ qA =>
-      qA + ": " + hiddAlphA.lookupIndex( qA )
-    }.mkString("<--\n\t","\n\t","\n-->" )
-  )
-
-  println(
-    hiddenStateTypes.toList.sortWith( (a,b) => a < b ).map{ qsFrom =>
-      qsFrom 
-    }.mkString("<--\n\t","\n\t","\n-->" )
-  )
-
   def assignmentToViterbiString( maxAssn:Assignment ) =
     (0 to ( stringLength -1 ) ).map{ t =>
       val hiddA = hiddAIndexToLabel( maxAssn.get( hiddenVariables( t ) ) )

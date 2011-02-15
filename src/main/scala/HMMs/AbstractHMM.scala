@@ -25,11 +25,7 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
     parameters.foreach( _.randomize( seed, centeredOn ) )
   }
 
-  /*
-  def randomize( seed:Int, centeredOn:Int, zeroTransitions:List[Tuple2[HiddenType,HiddenLabel]] ) {
-    parameters.foreach( _.randomize( seed, centeredOn , zeroTransitions) )
-  }
-  */
+  val localUniverse = new Universe()
 
   def normalize {
     parameters.foreach( _.normalize )

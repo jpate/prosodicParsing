@@ -27,7 +27,6 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
   def initialPartialCounts:PartialCounts
   def randomize(seed:Int, centeredOn:Int):Unit
-  def zeroAll( toZero:Set[Tuple2[Label,Label]] ):Unit
 
   var summingPartialCounts = initialPartialCounts
 
@@ -125,7 +124,6 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
     }
     case Stop => exit
     case Randomize( seed:Int, centeredOn:Int) => randomize( seed, centeredOn )
-    case ZeroOut( toZero:Set[Tuple2[Label,Label]] ) => zeroAll( toZero )
     case somethingElse:Any => println( "Manager got something else:\n" + somethingElse )
   }
 }

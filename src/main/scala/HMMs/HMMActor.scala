@@ -45,9 +45,8 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       self.reply( computePartialCounts(utt) )
     }
     case Viterbi( iteration, corpus ) => {
-      println(  "HMM " + hmmID + " got Viterbi" )
+      //println(  "HMM " + hmmID + " got Viterbi" )
       corpus.foreach{ case ViterbiString(label, string:List[O] ) =>
-        println( "Viterbi for " + string + " is: " )
         println( "it"+iteration + "," + label + "," + argmax( string ).mkString(""," ","") )
       }
       if( iteration == -1 ) {

@@ -36,7 +36,7 @@ object DevelopmentRunner {
 
     println( observationTypes )
 
-    val h = new PlainHMM( hiddenStates , observationTypes )
+    val h = new PlainHMM( hiddenStates , observationTypes, "0" )
 
     h.buildHMM( trainingData(0) )
 
@@ -62,7 +62,6 @@ object DevelopmentRunner {
     var lastProb = 0D
     var deltaLogProb = 1D
     var n = 0
-    /*
     while( math.abs( deltaLogProb ) > 0.00001 & n < 100 ) {
       //print( n + ":  " )
 
@@ -91,7 +90,6 @@ object DevelopmentRunner {
       n = n + 1
       // lastGenProb = generalProb
     }
-    */
 
     println( n + ":   " + h.generalProbability( trainingData last ) )
 

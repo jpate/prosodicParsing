@@ -259,6 +259,15 @@ abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDist
       )
     }
 
+  private def zeroOut( element:T ) = {
+    pt(element) = Double.NegativeInfinity
+  }
+
+  def zeroAll( toZero:Set[T] ) {
+    toZero.foreach{ element => zeroOut( element ) }
+    normalize
+  }
+
   def normalize {
     val max = pt.values.reduceLeft( Maths.sumLogProb( _ , _) )
 
@@ -422,7 +431,7 @@ case class PlainHMMPartialCounts(
             emissionCounts(q).keySet.map{ obs =>
               obs -> Maths.sumLogProb(
                 emissionCounts(q)(obs),
-                otherEmissionCounts(q)(obs) - otherStringLogProb
+                otherEmissionCounts(q)(obs) //- otherStringLogProb
               )
             }.toSeq:_*
           )
@@ -563,5 +572,4 @@ case object EMEnd
 
 case object Stop
 
-case class ZeroOut( toZero: Set[Tuple2[Label,Label]] )
 

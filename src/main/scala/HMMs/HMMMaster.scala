@@ -41,7 +41,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
     summingPartialCounts = initialPartialCounts
 
-    println( "At iteration start, we are: " + toString )
+    println( "At iteration start, we are:\n" + toString )
 
     hmms.foreach{ hmm =>
       hmm ! packageParameters

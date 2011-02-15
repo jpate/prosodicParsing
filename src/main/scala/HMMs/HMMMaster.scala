@@ -106,8 +106,8 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
         iterationEnd
       } else {
         if( ! toSend.isEmpty ) {
-          if( received % 100 == 0 )
-            println( "Sending utt " + received + " of " + trainingData.size )
+          if( (sent.size) % (trainingData.size/10) == 0 )
+            println( "Sending utt " + (trainingData.size - toSend.size) + " of " + trainingData.size )
           val nextUtt = toSend.head
           toSend = toSend.tail
           self.reply( EstimateUtterance( nextUtt ) )

@@ -30,11 +30,12 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       println( "HMM " + hmmID + " got a (sub?)corpus with " + corpus.size + " utterances" )
       var summingPartialCounts:PartialCounts = initialPartialCounts
       var n = 0
+      val numUtts = corpus.size
       corpus.foreach{ s =>
         n = n + 1
-        if ( n % 100 == 0 )
+        if ( n % (numUtts/10) == 0 )
           println(
-            "HMM " + hmmID + " processing sentence " + n + " of " + corpus.size
+            "HMM " + hmmID + " processing sentence " + n + " of " + numUtts
           )
         summingPartialCounts = summingPartialCounts + computePartialCounts( s )
       }

@@ -165,8 +165,7 @@ class PlainHMM(
           // var observations:Array[Variable] = Array()
 
   def buildSlicedHMM( tokens:List[ObservedState] ) {
-    // clear hmm this way; hmm.clear() breaks something.
-    //hmm = new DirectedModel()
+    localUniverse = new Universe()
     hmm = new DynamicBayesNet(tokens.size)
 
 
@@ -227,8 +226,7 @@ class PlainHMM(
   }
 
   def buildHMM( tokens:List[ObservedState] ) {
-    // clear hmm this way; hmm.clear() breaks something.
-    //hmm = new DirectedModel()
+    localUniverse = new Universe()
     hmm = new DynamicBayesNet(tokens.size)
 
 

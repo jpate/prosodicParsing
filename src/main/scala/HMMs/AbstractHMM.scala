@@ -25,7 +25,7 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
     parameters.foreach( _.randomize( seed, centeredOn ) )
   }
 
-  val localUniverse = new Universe()
+  var localUniverse = new Universe()
 
   def normalize {
     parameters.foreach( _.normalize )

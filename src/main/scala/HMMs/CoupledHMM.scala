@@ -175,6 +175,7 @@ class CoupledHMM(
   }
 
   def buildHMM( tokens: List[ObservedStatePair] ) {
+    localUniverse = new Universe()
     hmm = new DynamicBayesNet( tokens.size )
 
     stringLength = tokens.size
@@ -274,6 +275,7 @@ class CoupledHMM(
 
 
   def buildSlicedHMM( tokens: List[ObservedStatePair] ) {
+    localUniverse = new Universe()
     hmm = new DynamicBayesNet(tokens.size)
 
     stringLength = tokens.size

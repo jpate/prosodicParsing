@@ -505,7 +505,7 @@ case class CoupledHMMPartialCounts(
             emissionCountsA(qsFrom).keySet.map{ obsA =>
               obsA -> Maths.sumLogProb(
                   emissionCountsA(qsFrom)(obsA),
-                  otherEmissionCountsA(qsFrom)(obsA) //- otherStringLogProb
+                  otherEmissionCountsA(qsFrom)(obsA) - otherStringLogProb
               )
             }.toSeq:_*
           )
@@ -517,7 +517,7 @@ case class CoupledHMMPartialCounts(
             emissionCountsB(qsFrom).keySet.map{ obsB =>
               obsB -> Maths.sumLogProb(
                   emissionCountsB(qsFrom)(obsB),
-                  otherEmissionCountsB(qsFrom)(obsB) //- otherStringLogProb
+                  otherEmissionCountsB(qsFrom)(obsB) - otherStringLogProb
               )
             }.toSeq:_*
           )

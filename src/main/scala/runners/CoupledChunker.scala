@@ -85,7 +85,6 @@ object CoupledChunker {
         }
     }.filter{ s => s.size > 2 }//&& s.size < 20 }
 
-    println( corpus.size + " training sentences" )
 
     val testCorpus = io.Source.fromFile( testDataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
@@ -98,6 +97,8 @@ object CoupledChunker {
       )
     }.filter{ s => s.size > 2 }//&& s.size < 25 }
 
+    println( "random seed: " + randSeed )
+    println( corpus.size + " training sentences" )
     println( testCorpus.size + " dev sentences" )
 
     val observationTypes = Set( corpus.flatten).flatten.toSet

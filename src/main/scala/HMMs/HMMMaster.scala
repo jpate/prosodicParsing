@@ -61,6 +61,8 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       // }
   }
 
+  def emStart { }
+
   def emEnd {
     exit()
   }
@@ -157,6 +159,11 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
     viterbiHMM ! Viterbi( -1, testSet )
   }
 
+  override def emStart {
+    viterbiHMM ! packageParameters
+    viterbiHMM ! Viterbi( 0, testSet )
+  }
+
   override def iterationEnd {
     iterationCount += 1
 
@@ -174,7 +181,6 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
     println( "iteration " + iterationCount + ": " + corpusLogProb+ " (" + deltaLogProb +")" )
     if( converged( iterationCount, deltaLogProb ) ) {
       println( "EM Done! final HMM:\n\n" + toString )
-      //hmms.foreach( _.stop )
       emEnd
     } else {
       lastCorpusLogProb = corpusLogProb

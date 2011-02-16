@@ -17,7 +17,8 @@ object BaselineChunker {
     val testDataPath = args(1)
     val convergenceTolerance = args(2).toDouble
     val numHMMs = args(3).toInt
-    val randSeed = if(args.length > 4 ) args(4).toInt else 15
+    val whichStream = args(4).toInt
+    val randSeed = if(args.length > 5 ) args(5).toInt else 15
 
     //val obieCoding = Array( "O", "B", "I", "E" )
     val obieCoding = Array( "B", "E", "I", "O" )
@@ -79,12 +80,10 @@ object BaselineChunker {
     val corpus = io.Source.fromFile( dataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
         tokenized.tail.map{ w =>
-          val Array( word, _ ) = w.split( "#" )
-          ObservedState( word )
+          ObservedState( w.split( "#" )(whichStream) )
         }
     }.filter{ s => s.size > 2 }//&& s.size < 20 }
 
-    println( corpus.size + " training sentences" )
 
     val testCorpus = io.Source.fromFile( testDataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
@@ -97,6 +96,8 @@ object BaselineChunker {
       )
     }.filter{ s => s.size > 2 }//&& s.size < 25 }
 
+    println( "random seed: " + randSeed )
+    println( corpus.size + " training sentences" )
     println( testCorpus.size + " dev sentences" )
 
     val observationTypes = Set( corpus.flatten).flatten.toSet

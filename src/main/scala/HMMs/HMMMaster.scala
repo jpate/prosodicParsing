@@ -61,8 +61,6 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       // }
   }
 
-  def emStart { }
-
   def emEnd {
     exit()
   }
@@ -138,7 +136,11 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
   //val viterbiHMM:HMMActor[Q,O]
   val viterbiHMM:ActorRef
 
-  override def emInit = viterbiHMM.start()
+  override def emInit {
+    viterbiHMM.start()
+    viterbiHMM ! packageParameters
+    viterbiHMM ! Viterbi( 0, testSet )
+  }
 
   val frequency:Int
   val testSet:List[ViterbiString]
@@ -157,11 +159,6 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
   override def emEnd {
     viterbiHMM ! packageParameters
     viterbiHMM ! Viterbi( -1, testSet )
-  }
-
-  override def emStart {
-    viterbiHMM ! packageParameters
-    viterbiHMM ! Viterbi( 0, testSet )
   }
 
   override def iterationEnd {

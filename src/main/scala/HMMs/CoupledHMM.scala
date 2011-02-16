@@ -203,7 +203,7 @@ class CoupledHMM(
       new CPT(
         LogTableFactor.makeFromLogValues(
           Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarA(1) ),
-          ( initialStateProbabilities * transitionMatrixA).toArray
+          ( initialStateProbabilities * transitionMatrixA).toLogArray
           //( ( initialStateProbabilitiesA * initialStateProbabilitiesB ) * transitionMatrixA).toArray
         ),
         hiddenVarA(1)
@@ -214,7 +214,7 @@ class CoupledHMM(
       new CPT(
         LogTableFactor.makeFromLogValues(
           Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarB(1) ),
-          (initialStateProbabilities * transitionMatrixB).toArray
+          (initialStateProbabilities * transitionMatrixB).toLogArray
           //( initialStateProbabilitiesA * initialStateProbabilitiesB * transitionMatrixA).toArray
         ),
         hiddenVarB(1)
@@ -300,7 +300,7 @@ class CoupledHMM(
       new CPT(
         LogTableFactor.makeFromLogValues(
           Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarA(1) ),
-          (initialStateProbabilities * transitionMatrixA).toArray
+          (initialStateProbabilities * transitionMatrixA).toLogArray
         ),
         hiddenVarA(1)
       ),
@@ -310,7 +310,7 @@ class CoupledHMM(
       new CPT(
         LogTableFactor.makeFromLogValues(
           Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarB(1) ),
-          (initialStateProbabilities * transitionMatrixB).toArray
+          (initialStateProbabilities * transitionMatrixB).toLogArray
         ),
         hiddenVarB(1)
       ),

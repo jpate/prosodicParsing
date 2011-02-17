@@ -90,8 +90,7 @@ object BaselineChunker {
       ViterbiString(
         tokenized.head,
         tokenized.tail.map{ w =>
-          val Array( word, _ ) = w.split( "#" )
-          ObservedState( word )
+          ObservedState( w.split( "#" )(whichStream) )
         }
       )
     }.filter{ s => s.size > 2 }//&& s.size < 25 }
@@ -131,7 +130,7 @@ object BaselineChunker {
         val testSet = testCorpus
 
         def converged( iterations:Int, deltaLogProb:Double ) =
-          iterations > 100 || ( math.abs( deltaLogProb ) < convergenceTolerance && iterations > 15 )
+          iterations > 100 || ( math.abs( deltaLogProb ) < convergenceTolerance && iterations > 30 )
       }
     )
 

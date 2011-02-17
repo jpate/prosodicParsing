@@ -131,7 +131,7 @@ object CoupledChunker {
         val testSet = testCorpus
 
         def converged( iterations:Int, deltaLogProb:Double ) =
-          iterations > 100 || ( math.abs( deltaLogProb ) < convergenceTolerance && iterations > 15 )
+          iterations > 100 || ( math.abs( deltaLogProb ) < convergenceTolerance && iterations > 30 )
       }
     )
 

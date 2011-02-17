@@ -273,6 +273,7 @@ abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDist
 
     pt = HashMap(
       pt.keySet.map{ parent =>
+          // by convention 0 / 0 = 0
         if( max == Double.NegativeInfinity )
           parent -> Double.NegativeInfinity
         else
@@ -409,7 +410,7 @@ case class PlainHMMPartialCounts(
       HashMap(
         initialStateCounts.keySet.map{ q =>
           q -> Maths.sumLogProb(
-            initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb
+            initialStateCounts(q), otherInitialStateCounts(q) //- otherStringLogProb
           )
         }.toSeq:_*
       ),
@@ -419,7 +420,7 @@ case class PlainHMMPartialCounts(
             transitionCounts(qFrom).keySet.map{ qTo =>
               qTo -> Maths.sumLogProb(
                   transitionCounts(qFrom)(qTo),
-                  otherTransitionCounts(qFrom)(qTo) - otherStringLogProb
+                  otherTransitionCounts(qFrom)(qTo) //- otherStringLogProb
               )
             }.toSeq:_*
           )
@@ -471,7 +472,7 @@ case class CoupledHMMPartialCounts(
       HashMap(
         initialStateCounts.keySet.map{ q =>
           q -> Maths.sumLogProb(
-            initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb
+            initialStateCounts(q), otherInitialStateCounts(q) //- otherStringLogProb
           )
         }.toSeq:_*
       ),
@@ -481,7 +482,7 @@ case class CoupledHMMPartialCounts(
             transitionCountsA(qsFrom).keySet.map{ qA =>
               qA -> Maths.sumLogProb(
                   transitionCountsA(qsFrom)(qA),
-                  otherTransitionCountsA(qsFrom)(qA) - otherStringLogProb
+                  otherTransitionCountsA(qsFrom)(qA) //- otherStringLogProb
               )
             }.toSeq:_*
           )
@@ -493,7 +494,7 @@ case class CoupledHMMPartialCounts(
             transitionCountsB(qsFrom).keySet.map{ qB =>
               qB -> Maths.sumLogProb(
                   transitionCountsB(qsFrom)(qB),
-                  otherTransitionCountsB(qsFrom)(qB) - otherStringLogProb
+                  otherTransitionCountsB(qsFrom)(qB) //- otherStringLogProb
               )
             }.toSeq:_*
           )

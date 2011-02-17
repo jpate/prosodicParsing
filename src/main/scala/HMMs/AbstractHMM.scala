@@ -35,7 +35,7 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
 
   var hmm = new DynamicBayesNet(0)
 
-  def buildSlicedHMM( tokens:List[ObservedType] ):Unit
+  //def buildSlicedHMM( tokens:List[ObservedType] ):Unit
 
   def buildHMM( tokens:List[ObservedType] ):Unit
 
@@ -61,8 +61,14 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
   var stringLength = 0
 
   def argmax( string:List[ObservedType] ) = {
-    buildSlicedHMM( string )
-    val maxAssn = Models.bestAssignment( hmm,  JunctionTreeInferencer.createForMaxProduct() )
+    buildHMM( string )
+    val maxAssn = Models.bestAssignment(
+      Models.addEvidence(
+        hmm,
+        generateObservationSequence( string )
+      ),
+      JunctionTreeInferencer.createForMaxProduct()
+    )
     assignmentToViterbiString( maxAssn )
   }
 

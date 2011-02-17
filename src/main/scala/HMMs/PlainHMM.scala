@@ -7,6 +7,7 @@ import cc.mallet.grmm.types._
 import cc.mallet.grmm.inference.ForwardBackwardInferencer
 import cc.mallet.grmm.inference.JunctionTreeInferencer
 import cc.mallet.grmm.inference.JunctionTreeInferencer._
+import cc.mallet.grmm.util.Models
 import cc.mallet.util.Maths
 //import scala.collection.immutable.{HashMap,HashSet}
 import scala.collection.mutable.{HashMap,HashSet}
@@ -164,66 +165,66 @@ class PlainHMM(
           // var hiddenVariables:Array[Variable] = Array()
           // var observations:Array[Variable] = Array()
 
-  def buildSlicedHMM( tokens:List[ObservedState] ) {
-    localUniverse = new Universe()
-    hmm = new DynamicBayesNet(tokens.size)
+      // def buildSlicedHMM( tokens:List[ObservedState] ) {
+      //   localUniverse = new Universe()
+      //   hmm = new DynamicBayesNet(tokens.size)
 
 
-    hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( localUniverse, hiddenStateAlphabet ) )
-    observations = Array.tabulate(tokens.size)( _ => new Variable( localUniverse, observationAlphabet ) )
+      //   hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( localUniverse, hiddenStateAlphabet ) )
+      //   observations = Array.tabulate(tokens.size)( _ => new Variable( localUniverse, observationAlphabet ) )
 
 
-    ( 0 to tokens.size-1 ) foreach{ i =>
-      hiddenVariables(i).setLabel("hidden."+i)
-      observations(i).setLabel("observed."+i)
-    }
+      //   ( 0 to tokens.size-1 ) foreach{ i =>
+      //     hiddenVariables(i).setLabel("hidden."+i)
+      //     observations(i).setLabel("observed."+i)
+      //   }
 
 
-    // initial states:
-    hmm.addHiddenTimedFactor(
-      new CPT(
-        new TableFactor(
-          Array( hiddenVariables(0), hiddenVariables(1) ),
-          (initialStateProbabilities * transitionMatrix ).toArray
-        ),
-        hiddenVariables(1)
-      ),
-      0
-    )
-    // state transitions
-    ( 2 to (tokens.size-1) ) foreach{ i =>
-      hmm.addHiddenTimedFactor(
-        new CPT(
-          new TableFactor(
-            Array( hiddenVariables(i-1), hiddenVariables(i) ),
-              transitionMatrix.toArray
-          ),
-          hiddenVariables(i)
-        ),
-        i-1
-      )
-    }
+      //   // initial states:
+      //   hmm.addHiddenTimedFactor(
+      //     new CPT(
+      //       new TableFactor(
+      //         Array( hiddenVariables(0), hiddenVariables(1) ),
+      //         (initialStateProbabilities * transitionMatrix ).toArray
+      //       ),
+      //       hiddenVariables(1)
+      //     ),
+      //     0
+      //   )
+      //   // state transitions
+      //   ( 2 to (tokens.size-1) ) foreach{ i =>
+      //     hmm.addHiddenTimedFactor(
+      //       new CPT(
+      //         new TableFactor(
+      //           Array( hiddenVariables(i-1), hiddenVariables(i) ),
+      //             transitionMatrix.toArray
+      //         ),
+      //         hiddenVariables(i)
+      //       ),
+      //       i-1
+      //     )
+      //   }
 
-    // emissions
-    ( 0 to tokens.size-1 ) foreach { i =>
-      val thisObservation = new Assignment(
-        observations(i),
-        observationAlphabet.lookupIndex( tokens(i) )
-      )
+      //   // emissions
+      //   ( 0 to tokens.size-1 ) foreach { i =>
+      //     val thisObservation = new Assignment(
+      //       observations(i),
+      //       observationAlphabet.lookupIndex( tokens(i) )
+      //     )
 
-      hmm.addObservedTimedFactor(
-        new CPT(
-          new TableFactor(
-            Array( hiddenVariables(i), observations(i) ),
-            emissionMatrix.toArray
-          ),
-          observations(i),
-          thisObservation
-        ),
-        i
-      )
-    }
-  }
+      //     hmm.addObservedTimedFactor(
+      //       new CPT(
+      //         new TableFactor(
+      //           Array( hiddenVariables(i), observations(i) ),
+      //           emissionMatrix.toArray
+      //         ),
+      //         observations(i),
+      //         thisObservation
+      //       ),
+      //       i
+      //     )
+      //   }
+      // }
 
   def buildHMM( tokens:List[ObservedState] ) {
     localUniverse = new Universe()
@@ -287,12 +288,20 @@ class PlainHMM(
 
   def computePartialCounts( sequence:List[ObservedState] ) = {
     val stringLogProb = generalProbability( sequence )
-    buildSlicedHMM( sequence )
+    //buildSlicedHMM( sequence )
+    buildHMM( sequence )
 
 
     val inferencer = new ForwardBackwardInferencer()
     //println( "calling computeMarginals from within computePartialCounts directly" );
-    inferencer.computeMarginals( hmm )
+    //inferencer.computeMarginals( hmm )
+
+    inferencer.computeMarginals(
+      Models.addEvidence(
+        hmm,
+        generateObservationSequence( sequence )
+      )
+    )
 
     val initialStateCounts = HashMap(
       hiddenStateTypes.map{ _ -> Double.NegativeInfinity }.toSeq:_*
@@ -545,7 +554,7 @@ class PlainHMM(
 
       corpusInitialStateDenominator = Maths.sumLogProb(
           corpusInitialStateDenominator,
-          stringInitialStateDenominator - stringLogProb
+          stringInitialStateDenominator //- stringLogProb
       )
 
 
@@ -553,16 +562,16 @@ class PlainHMM(
         stringTransitionCounts(qFrom).keySet.foreach{ qTo =>
           corpusTransitionCounts(qFrom)(qTo) = Maths.sumLogProb(
               corpusTransitionCounts(qFrom)(qTo),
-              stringTransitionCounts(qFrom)(qTo) - stringLogProb
+              stringTransitionCounts(qFrom)(qTo) //- stringLogProb
           )
         }
         corpusInitialStateCounts(qFrom) = Maths.sumLogProb(
             corpusInitialStateCounts(qFrom),
-            stringInitialStateCounts(qFrom) - stringLogProb
+            stringInitialStateCounts(qFrom) //- stringLogProb
         )
         corpusTransitionDenominator(qFrom) = Maths.sumLogProb(
             corpusTransitionDenominator(qFrom),
-            stringTransitionDenominator(qFrom) - stringLogProb
+            stringTransitionDenominator(qFrom) //- stringLogProb
         )
         stringEmissionCounts(qFrom).keySet.foreach{ obs =>
           corpusEmissionCounts(qFrom)(obs) = Maths.sumLogProb(
@@ -852,9 +861,15 @@ class PlainHMM(
   }
 
   def marginalsForString( string:List[ObservedState] ) {
-    buildSlicedHMM( string )
+    //buildSlicedHMM( string )
+    buildHMM( string )
     val inferencer = new ForwardBackwardInferencer()
-    inferencer.computeMarginals( hmm )
+    inferencer.computeMarginals(
+      Models.addEvidence(
+        hmm,
+        generateObservationSequence( string )
+      )
+    )
 
     hiddenVariables foreach ( someHiddenVar =>
       println( inferencer.lookupMarginal( someHiddenVar ).dumpToString() )

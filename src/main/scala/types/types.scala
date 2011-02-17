@@ -1,6 +1,8 @@
 package ProsodicParsing.types
-import scala.collection.immutable.HashMap
-import ProsodicParsing.util.Util
+//import scala.collection.immutable.HashMap
+import scala.collection.mutable.HashMap
+//import ProsodicParsing.util.Util
+import cc.mallet.util.Maths
 import math.{exp,log}
 
 
@@ -28,10 +30,8 @@ case class ObservedStatePair( obs1:String, obs2:String )
   extends ObservedLabel( obs1+"^"+obs2 ) with StatePair
 
 abstract class AbstractDistribution {
-  def randomize(n:Int):Unit
+  def randomize(seed:Int,centeredOn:Int):Unit
   def normalize:Unit
-  def scale(n:Int):Unit
-  def deScale(n:Int):Unit
 }
 
 abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
@@ -52,15 +52,17 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
       cpt.keySet.map{ parent =>
         parent -> HashMap(
           cpt(parent).keySet.map{ child =>
-            child -> cpt(parent)(child) / maxes(parent)
+            if( maxes(parent) == 0D )
+              child -> 0D
+            else
+              child -> cpt(parent)(child) / maxes(parent)
           }.toSeq:_*
         )
       }.toSeq:_*
     )
   }
 
-  val seed = 15
-  def randomize( centeredOn:Int ) {
+  def randomize( seed:Int, centeredOn:Int ) {
     import scala.util.Random
     val r = new Random( seed )
 
@@ -77,29 +79,7 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
     normalize
   }
 
-  def scale( n:Int ) {
-    cpt = HashMap(
-      cpt.keySet.map{ parent =>
-        parent -> HashMap(
-          cpt(parent).keySet.map{ child =>
-            child -> ( cpt(parent)(child) * n )
-          }.toSeq:_*
-        )
-      }.toSeq:_*
-    )
-  }
 
-  def deScale( n:Int ) {
-    cpt = HashMap(
-      cpt.keySet.map{ parent =>
-        parent -> HashMap(
-          cpt(parent).keySet.map{ child =>
-            child -> ( cpt(parent)(child) / n )
-          }.toSeq:_*
-        )
-      }.toSeq:_*
-    )
-  }
 
   def toArray = {
     cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
@@ -118,7 +98,7 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
   }.mkString("","\n","\n")
 }
 
-abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
+abstract class AbstractConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
   import math.{exp,log}
 
   var cpt:HashMap[T,HashMap[U,Double]]
@@ -131,22 +111,35 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
 
   def normalize {
     val maxes = HashMap(
-      cpt.keySet.map( parent => parent -> ( Util.log_add( cpt(parent).values.toList ) ) ).toSeq:_*
+      cpt.keySet.map( parent =>
+        parent -> ( cpt(parent).values.reduceLeft( Maths.sumLogProb(_,_) ) )
+      ).toSeq:_*
     )
 
     cpt = HashMap(
       cpt.keySet.map{ parent =>
         parent -> HashMap(
           cpt(parent).keySet.map{ child =>
-            child -> ( cpt(parent)(child) - maxes(parent) )
+            if( maxes( parent ) == Double.NegativeInfinity )
+              child -> Double.NegativeInfinity
+            else
+              child -> ( cpt(parent)(child) - maxes(parent) )
           }.toSeq:_*
         )
       }.toSeq:_*
     )
   }
 
-  val seed = 15
-  def randomize( centeredOn:Int ) {
+  private def zeroOut( from:T, to:U ) = {
+    cpt(from)(to) = Double.NegativeInfinity
+  }
+
+  def zeroAll( toZero:Set[Tuple2[T,U]] ) {
+    toZero.foreach{ case( from, to ) => zeroOut( from, to ) }
+    normalize
+  }
+
+  def randomize( seed:Int, centeredOn:Int ) {
     import scala.util.Random
     val r = new Random( seed )
 
@@ -163,34 +156,18 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
     normalize
   }
 
-  def deScale( n:Int ) {
-    cpt = HashMap(
-      cpt.keySet.map{ parent =>
-        parent -> HashMap(
-          cpt(parent).keySet.map{ child =>
-            child -> ( cpt(parent)(child) - log( n ) )
-          }.toSeq:_*
-        )
-      }.toSeq:_*
-    )
-  }
-
-  def scale( n:Int ) {
-    cpt = HashMap(
-      cpt.keySet.map{ parent =>
-        parent -> HashMap(
-          cpt(parent).keySet.map{ child =>
-            child -> ( cpt(parent)(child) + log( n ) )
-          }.toSeq:_*
-        )
-      }.toSeq:_*
-    )
-  }
-
   def toArray = {
     cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
       cpt(parent).keySet.toList.sortWith( (c,d) => c < d ).map{ child =>
         exp( cpt(parent)(child) )
+      }
+    }.toArray
+  }
+
+  def toLogArray = {
+    cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
+      cpt(parent).keySet.toList.sortWith( (c,d) => c < d ).map{ child =>
+        cpt(parent)(child)
       }
     }.toArray
   }
@@ -204,8 +181,49 @@ abstract class ConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends 
   }.mkString("","\n","\n")
 }
 
-abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution {
-  //protected[this] var pt:HashMap[T,Double]
+class ConditionalLogProbabilityDistribution[T<:Label,U<:Label]( parents:Set[T], children:Set[U] )
+  extends AbstractConditionalLogProbabilityDistribution[T,U] {
+  var cpt = HashMap(
+    parents.map( parent =>
+        parent -> (
+          HashMap(
+            children.map( child =>
+              child -> log( 1D/children.size )
+            ).toSeq: _*
+          )
+        )
+      ).toSeq: _*
+    )
+}
+
+/*
+class LogProbDistWithStructuralZeros[T,U]( zeros:Set[Tuple2[T,U]], )
+  extends ConditionalLogProbabilityDistribution[T,U] {
+  var cpt:HashMap[T,HashMap[U,Double]]
+
+  override def randomize( seed:Int, centeredOn:Int ) {
+    import scala.util.Random
+    val r = new Random( seed )
+
+    cpt = HashMap(
+      cpt.keySet.map{ parent =>
+        parent -> HashMap(
+          cpt(parent).keySet.map{ child =>
+            if( zeros.contains( Tuple2( parent, child ) ) )
+              child -> Double.NegativeInfinity
+            else
+              child -> ( log( r.nextDouble + centeredOn ) )
+          }.toSeq:_*
+        )
+      }.toSeq:_*
+    )
+
+    normalize
+  }
+}
+*/
+
+abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDistribution {
   var pt:HashMap[T,Double]
 
   def setPT( updatedPT: HashMap[T,Double] ) {
@@ -213,7 +231,7 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
   }
 
   def *[U<:Label]( otherCPT: ConditionalLogProbabilityDistribution[T,U] ) =
-    new ConditionalLogProbabilityDistribution[T,U] {
+    new AbstractConditionalLogProbabilityDistribution[T,U] {
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (
@@ -241,58 +259,29 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
       )
     }
 
-  //type U<:Label
-  /*
-  def *( otherPT: ProbabilityDistribution[HiddenState] ):ProbabilityDistribution[HiddenStatePair] = {
-    val newPT = HashMap{
-        keySet.flatMap{ x =>
-          otherPT.domain.map{ y =>
-            //HiddenStatePair(x.s, y) ->  apply(x) * otherPT(y)
-            (y * x) ->  apply(x) * otherPT(y)
-          }
-        }.toSeq:_*
-      }
-
-    new ProbabilityDistribution[HiddenStatePair] {
-      //assert( domain == otherPT.domain )
-      var pt = newPT
-    }
+  private def zeroOut( element:T ) = {
+    pt(element) = Double.NegativeInfinity
   }
-  */
 
-  def domain = pt.keySet
-
+  def zeroAll( toZero:Set[T] ) {
+    toZero.foreach{ element => zeroOut( element ) }
+    normalize
+  }
 
   def normalize {
-    val max = Util.log_add( pt.values.toList )
-
-    //val singleSupport = pt.values.exists( _ == 0D )
+    val max = pt.values.reduceLeft( Maths.sumLogProb( _ , _) )
 
     pt = HashMap(
       pt.keySet.map{ parent =>
-        //if( singleSupport )
-        //  if( pt(parent) == 0D )
-        //    parent -> 0D
-        //  else
-        //    parent -> Double.NegativeInfinity
-        //else
+        if( max == Double.NegativeInfinity )
+          parent -> Double.NegativeInfinity
+        else
           parent -> ( pt(parent) - max )
       }.toSeq:_*
     )
   }
 
-  // def normalize {
-  //   val max = Util.log_add( pt.values.toList )
-
-  //   pt = HashMap(
-  //     pt.keySet.map{ parent =>
-  //       parent -> ( pt(parent) - max )
-  //     }.toSeq:_*
-  //   )
-  // }
-
-  val seed = 15
-  def randomize( centeredOn:Int ) {
+  def randomize( seed:Int, centeredOn:Int ) {
     import scala.util.Random
     val r = new Random( seed )
 
@@ -305,22 +294,6 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
     normalize
   }
 
-  def scale( n:Int ) {
-    pt = HashMap(
-      pt.keySet.map{ parent =>
-        parent ->  ( pt(parent) + log( n ) )
-      }.toSeq:_*
-    )
-  }
-
-  def deScale( n:Int ) {
-    pt = HashMap(
-      pt.keySet.map{ parent =>
-        parent ->  ( pt(parent) - log( n ) )
-      }.toSeq:_*
-    )
-  }
-
   def toArray = pt.keySet.toList.sortWith( (a,b) => a < b ).map( k => exp( pt(k) ) ).toArray
 
   def apply( k:T ) = pt( k )
@@ -328,6 +301,14 @@ abstract class LogProbabilityDistribution[T<:Label] extends AbstractDistribution
   override def toString = pt.keySet.toList.sortWith( (a,b) => a < b ).map{ parent =>
     parent + ":\t" + exp( pt(parent) )
   }.mkString("\n\t","\n\t","\n")
+}
+
+class LogProbabilityDistribution[T<:Label]( domain:Set[T] ) extends AbstractLogProbabilityDistribution[T] {
+    var pt = HashMap(
+      domain.map( element =>
+        element -> log( 1D/ domain.size )
+      ).toSeq: _*
+    )
 }
 
 
@@ -339,7 +320,7 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
   }
 
   def *[U<:Label]( otherCPT: ConditionalLogProbabilityDistribution[T,U] ) =
-    new ConditionalLogProbabilityDistribution[T,U] {
+    new AbstractConditionalLogProbabilityDistribution[T,U] {
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (
@@ -364,24 +345,6 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
       )
     }
 
-  //type U<:Label
-  /*
-  def *( otherPT: ProbabilityDistribution[HiddenState] ):ProbabilityDistribution[HiddenStatePair] = {
-    val newPT = HashMap{
-        keySet.flatMap{ x =>
-          otherPT.domain.map{ y =>
-            //HiddenStatePair(x.s, y) ->  apply(x) * otherPT(y)
-            (y * x) ->  apply(x) * otherPT(y)
-          }
-        }.toSeq:_*
-      }
-
-    new ProbabilityDistribution[HiddenStatePair] {
-      //assert( domain == otherPT.domain )
-      var pt = newPT
-    }
-  }
-  */
 
   def domain = pt.keySet
 
@@ -389,29 +352,15 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
     val max = pt.values.sum
     pt = HashMap(
       pt.keySet.map{ parent =>
-        parent -> pt(parent) / max
+        if( max == 0D )
+          parent -> 0D
+        else
+          parent -> pt(parent) / max
       }.toSeq:_*
     )
   }
 
-  def scale(n:Int) {
-    pt = HashMap(
-      pt.keySet.map{ parent =>
-        parent -> pt(parent) * n
-      }.toSeq:_*
-    )
-  }
-
-  def deScale(n:Int) {
-    pt = HashMap(
-      pt.keySet.map{ parent =>
-        parent -> pt(parent) / n
-      }.toSeq:_*
-    )
-  }
-
-  val seed = 15
-  def randomize( centeredOn:Int ) {
+  def randomize( seed:Int, centeredOn:Int ) {
     import scala.util.Random
     val r = new Random( seed )
 
@@ -459,8 +408,8 @@ case class PlainHMMPartialCounts(
       stringLogProb + otherStringLogProb,
       HashMap(
         initialStateCounts.keySet.map{ q =>
-          q -> Util.log_add(
-            List( initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb )
+          q -> Maths.sumLogProb(
+            initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb
           )
         }.toSeq:_*
       ),
@@ -468,11 +417,9 @@ case class PlainHMMPartialCounts(
         transitionCounts.keySet.map{ qFrom =>
           qFrom -> HashMap(
             transitionCounts(qFrom).keySet.map{ qTo =>
-              qTo -> Util.log_add(
-                List(
+              qTo -> Maths.sumLogProb(
                   transitionCounts(qFrom)(qTo),
                   otherTransitionCounts(qFrom)(qTo) - otherStringLogProb
-                )
               )
             }.toSeq:_*
           )
@@ -482,10 +429,9 @@ case class PlainHMMPartialCounts(
         emissionCounts.keySet.map{ q =>
           q -> HashMap(
             emissionCounts(q).keySet.map{ obs =>
-              obs -> Util.log_add(
-                List( emissionCounts(q)(obs),
-                  otherEmissionCounts(q)(obs) - otherStringLogProb
-                )
+              obs -> Maths.sumLogProb(
+                emissionCounts(q)(obs),
+                otherEmissionCounts(q)(obs) //- otherStringLogProb
               )
             }.toSeq:_*
           )
@@ -524,8 +470,8 @@ case class CoupledHMMPartialCounts(
       stringLogProb + otherStringLogProb,
       HashMap(
         initialStateCounts.keySet.map{ q =>
-          q -> Util.log_add(
-            List( initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb )
+          q -> Maths.sumLogProb(
+            initialStateCounts(q), otherInitialStateCounts(q) - otherStringLogProb
           )
         }.toSeq:_*
       ),
@@ -533,11 +479,9 @@ case class CoupledHMMPartialCounts(
         transitionCountsA.keySet.map{ qsFrom =>
           qsFrom -> HashMap(
             transitionCountsA(qsFrom).keySet.map{ qA =>
-              qA -> Util.log_add(
-                List(
+              qA -> Maths.sumLogProb(
                   transitionCountsA(qsFrom)(qA),
                   otherTransitionCountsA(qsFrom)(qA) - otherStringLogProb
-                )
               )
             }.toSeq:_*
           )
@@ -547,11 +491,9 @@ case class CoupledHMMPartialCounts(
         transitionCountsB.keySet.map{ qsFrom =>
           qsFrom -> HashMap(
             transitionCountsB(qsFrom).keySet.map{ qB =>
-              qB -> Util.log_add(
-                List(
+              qB -> Maths.sumLogProb(
                   transitionCountsB(qsFrom)(qB),
                   otherTransitionCountsB(qsFrom)(qB) - otherStringLogProb
-                )
               )
             }.toSeq:_*
           )
@@ -561,11 +503,9 @@ case class CoupledHMMPartialCounts(
         emissionCountsA.keySet.map{ qsFrom =>
           qsFrom -> HashMap(
             emissionCountsA(qsFrom).keySet.map{ obsA =>
-              obsA -> Util.log_add(
-                List(
+              obsA -> Maths.sumLogProb(
                   emissionCountsA(qsFrom)(obsA),
                   otherEmissionCountsA(qsFrom)(obsA) //- otherStringLogProb
-                )
               )
             }.toSeq:_*
           )
@@ -575,11 +515,9 @@ case class CoupledHMMPartialCounts(
         emissionCountsB.keySet.map{ qsFrom =>
           qsFrom -> HashMap(
             emissionCountsB(qsFrom).keySet.map{ obsB =>
-              obsB -> Util.log_add(
-                List(
+              obsB -> Maths.sumLogProb(
                   emissionCountsB(qsFrom)(obsB),
                   otherEmissionCountsB(qsFrom)(obsB) //- otherStringLogProb
-                )
               )
             }.toSeq:_*
           )
@@ -625,5 +563,13 @@ case class ViterbiString( stringLabel:String, string:List[ObservedLabel] ) {
 }
 
 case class Viterbi( iterationCount:Int, vit:List[ViterbiString] )
+
+case class Randomize( seed:Int, centeredOn:Int )
+
+case object Initialize
+
+case object EMEnd
+
+case object Stop
 
 

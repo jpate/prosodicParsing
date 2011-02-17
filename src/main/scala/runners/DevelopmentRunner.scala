@@ -5,6 +5,8 @@ import ProsodicParsing.HMMs.HMMMaster
 import ProsodicParsing.HMMs.HMMActor
 import ProsodicParsing.HMMs.EvaluatingMaster
 import ProsodicParsing.types._
+import akka.actor.Actor.actorOf
+import akka.actor.ActorRef
 
 object DevelopmentRunner {
   def main( args:Array[String]) {
@@ -34,11 +36,11 @@ object DevelopmentRunner {
 
     println( observationTypes )
 
-    val h = new PlainHMM( hiddenStates , observationTypes )
+    val h = new PlainHMM( hiddenStates , observationTypes, "0" )
 
     h.buildHMM( trainingData(0) )
 
-    h.randomize( 1 )
+    h.randomize( 15, 1 )
 
     println( h )
 
@@ -60,7 +62,6 @@ object DevelopmentRunner {
     var lastProb = 0D
     var deltaLogProb = 1D
     var n = 0
-    /*
     while( math.abs( deltaLogProb ) > 0.00001 & n < 100 ) {
       //print( n + ":  " )
 
@@ -89,7 +90,6 @@ object DevelopmentRunner {
       n = n + 1
       // lastGenProb = generalProb
     }
-    */
 
     println( n + ":   " + h.generalProbability( trainingData last ) )
 
@@ -127,6 +127,7 @@ object CoupledDevelopmentRunner {
     import scala.math.log
 
     val dataPath = args(0)
+    val testDataPath = args(1)
 
     val hiddenStates =
       Set( "S_0", "S_1", "S_2" ).flatMap{ x =>
@@ -135,19 +136,23 @@ object CoupledDevelopmentRunner {
         }
       }
 
-      //val trainingData = io.Source.fromFile( dataPath ).getLines().toList.map(
-      //  _.split(" ").toList.map{ w =>
-      //    val Array( word, prosody ) = w.split( "#")
-      //    ObservedStatePair( word, prosody )
-      //  }
-      //).filter( _.size > 2 )
-
     val trainingData = io.Source.fromFile( dataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
         tokenized.tail.map{ w =>
           val Array( word, prosody ) = w.split( "#" )
           ObservedStatePair( word, prosody )
         }
+    }.filter{ s => s.size > 2 && s.size < 25 }
+
+    val testCorpus = io.Source.fromFile( testDataPath ).getLines().toList.map{ rawString =>
+      val tokenized = rawString.split(" ").toList
+      ViterbiString(
+        tokenized.head,
+        tokenized.tail.map{ w =>
+          val Array( word, prosody ) = w.split( "#" )
+          ObservedStatePair( word, prosody )
+        }
+      )
     }.filter{ s => s.size > 2 && s.size < 25 }
 
     val observationTypes =// Set( uttStart, uttEnd  ) ++
@@ -158,8 +163,8 @@ object CoupledDevelopmentRunner {
     //println( trainingData )
 
 
-    val h = new CoupledHMM( hiddenStates, observationTypes )
-    h.randomize( 10 )
+    val h = new CoupledHMM( hiddenStates, observationTypes, "0" )
+    h.randomize( 15, 10 )
 
     println( "Hidden States:" )
     println( hiddenStates.mkString("","\n","\n\n" ) )
@@ -184,19 +189,23 @@ object CoupledDevelopmentRunner {
     var lastLogProb = 0D
     var deltaLogProb = 1D
     var n = 0
-    while( ( math.abs( deltaLogProb ) > 0.00001 ) & n < 100 ) {
+    while( ( math.abs( deltaLogProb ) > 0.01 || n <= 15 ) & n < 100 ) {
+      n += 1
       val newLogProb = h.reestimate( trainingData )
       deltaLogProb = ((newLogProb-lastLogProb)/lastLogProb)
       println( n + ": " + newLogProb + " ("+  deltaLogProb + ")")
-      println( h )
+      //println( h )
       lastLogProb = newLogProb
+      if( n % 4 == 0 )
+        testCorpus.foreach{ case ViterbiString(label, string:List[ObservedStatePair] ) =>
+          println( "it"+n + "," + label + "," + h.argmax( string ).mkString(""," ","") )
+        }
       /*
       if( n % 5 == 0 ) 
         println(
           h.argmax( trainingData ).map{_.mkString(""," ",".")}.mkString("\t","\n\t","\n")
         )
       */
-      n += 1
     }
 
     println( "EM RESULTS IN: " )
@@ -222,12 +231,6 @@ object ActorsDevelopmentRunner {
         }
       }
 
-        // val corpus = io.Source.fromFile( dataPath ).getLines().toList.map(
-        //   _.split(" ").toList.map{ w =>
-        //     val Array( word, prosody ) = w.split( "#")
-        //     ObservedStatePair( word, prosody )
-        //   }
-        // ).filter( _.size > 2 )
 
     val corpus = io.Source.fromFile( dataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
@@ -254,18 +257,21 @@ object ActorsDevelopmentRunner {
 
     val observationTypes = Set( corpus.flatten).flatten.toSet
 
-    object Manager
-      extends CoupledHMM(hiddenStates,observationTypes)
-      with HMMMaster[HiddenStatePair,ObservedStatePair]
+    val manager = actorOf(
+      new CoupledHMM(hiddenStates,observationTypes,"Master") with HMMMaster[HiddenStatePair,ObservedStatePair]
       with EvaluatingMaster[HiddenStatePair,ObservedStatePair] {
       val trainingData = corpus
-      var hmms = List[HMMActor[HiddenStatePair,ObservedStatePair]](
-        new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
+      //var hmms = List[HMMActor[HiddenStatePair,ObservedStatePair]](
+      var hmms = List[ActorRef](
+        actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet, "0" )
+          with HMMActor[HiddenStatePair,ObservedStatePair]).start,
         //new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair],
-        new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair]
+        actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet, "1") with
+        HMMActor[HiddenStatePair,ObservedStatePair] ).start
       )
 
-      val viterbiHMM = new CoupledHMM( hiddenStates, observationTypes.toSet ) with HMMActor[HiddenStatePair,ObservedStatePair]
+      val viterbiHMM = actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet, "viterbi" ) with
+      HMMActor[HiddenStatePair,ObservedStatePair] )
 
       val frequency = 4
       val testSet = testCorpus
@@ -273,11 +279,14 @@ object ActorsDevelopmentRunner {
       def converged( iterations:Int, deltaLogProb:Double ) =
         iterations > 100 || ( math.abs( deltaLogProb ) < 0.01 && iterations > 15 )
     }
+    )
 
-    Manager.randomize(10)
+    manager.start
+    manager ! Randomize(15,10)
+    manager ! Initialize
     println( "Starting HMM: ")
     //println( Manager )
-    Manager.start()
+    manager.start()
   }
 }
 

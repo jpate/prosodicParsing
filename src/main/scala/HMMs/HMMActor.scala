@@ -1,8 +1,10 @@
 package ProsodicParsing.HMMs
 
 import ProsodicParsing.types._
-import scala.actors._
-import scala.actors.Actor
+//import scala.actors._
+//import scala.actors.Actor
+import akka.actor.Actor
+import akka.actor.Actor._
 
 trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
@@ -11,45 +13,50 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
   def argmax( corpus:List[O] ):List[Q]
   def normalize:Unit
   def initialPartialCounts:PartialCounts
+  def randomize(seed:Int,centeredOn:Int):Unit
 
+  val hmmID:String
 
-  //type P<:Parameters
-  def act() {
-    println( "Starting..." )
-    loop {
-      react{
-        case parameters:Parameters => {
-          setParams(parameters)
-          normalize
-        }
-        case EstimateCorpus( corpus:List[List[O]] ) => {
-          println( "Got a (sub?)corpus" )
-          //corpus.foreach( sender ! computePartialCounts(_) )
-          //reply( Tuple2( corpus.size, corpus.map( computePartialCounts(_) ).reduceLeft(_+_) ) )
-          var summingPartialCounts:PartialCounts = initialPartialCounts
-          corpus.foreach{ s =>
-            summingPartialCounts = summingPartialCounts + computePartialCounts( s )
-          }
-          reply( Tuple2( corpus.size, summingPartialCounts ) )
-        }
-        case EstimateUtterance( utt:List[O] ) => {
-          println( "Got an utterance: " + utt )
-          reply( computePartialCounts(utt) )
-        }
-        case Viterbi( iteration, corpus ) => {
-          corpus.foreach{ case ViterbiString(label, string:List[O] ) =>
-            //val ViterbiString( label, string ) = vit
-            println( "it"+iteration + "," + label + "," + argmax( string ).mkString(""," ","") )
-          }
-          //println( argmax(corpus).map{_.mkString(""," ","")} )
-          //reply( argmax( corpus ) )
-        }
-        case Stop => exit()
-        case somethingElse:Any => println( "Slave got something else:\n" + somethingElse )
+  def receive = {
+    case Initialize => {
+      println( "HMM " + hmmID + " starting..." )
+    }
+    case parameters:Parameters => {
+      println( "Got parameters" )
+      setParams(parameters)
+      normalize
+    }
+    case EstimateCorpus( corpus:List[List[O]] ) => {
+      println( "HMM " + hmmID + " got a (sub?)corpus with " + corpus.size + " utterances" )
+      var summingPartialCounts:PartialCounts = initialPartialCounts
+      var n = 0
+      val numUtts = corpus.size
+      corpus.foreach{ s =>
+        n = n + 1
+        if ( n % (numUtts/10) == 0 )
+          println(
+            "HMM " + hmmID + " processing sentence " + n + " of " + numUtts
+          )
+        summingPartialCounts = summingPartialCounts + computePartialCounts( s )
+      }
+      self.reply( Tuple2( corpus.size, summingPartialCounts ) )
+    }
+    case EstimateUtterance( utt:List[O] ) => {
+      //println( "HMM " + hmmID + " got an utterance: " + utt )
+      self.reply( computePartialCounts(utt) )
+    }
+    case Viterbi( iteration, corpus ) => {
+      //println(  "HMM " + hmmID + " got Viterbi with " + corpus.size + " sentences" )
+      corpus.foreach{ case ViterbiString(label, string:List[O] ) =>
+        println( "it"+iteration + "," + label + "," + argmax( string ).mkString(""," ","") )
+      }
+      if( iteration == -1 ) {
+        self.reply( Stop )
+        exit
       }
     }
+    case somethingElse:Any => println( "Slave HMM " + hmmID + " got something else:\n" + somethingElse )
   }
 }
 
-case object Stop
 

@@ -5,7 +5,7 @@ import cc.mallet.grmm.types._
 import cc.mallet.grmm.inference.ForwardBackwardInferencer
 import cc.mallet.grmm.inference.JunctionTreeInferencer
 import cc.mallet.grmm.util.Models
-import ProsodicParsing.util.Util
+import cc.mallet.util.Maths
 
 abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
   hiddenStateTypesSet:Set[HiddenType],
@@ -21,15 +21,16 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
 
   val numHiddenStates = hiddenStateTypes.size
 
-  def randomize( n:Int ) {
-    parameters.foreach( _.randomize( n ) )
+  def randomize( seed:Int, centeredOn:Int ) {
+    parameters.foreach( _.randomize( seed, centeredOn ) )
   }
+
+  var localUniverse = new Universe()
 
   def normalize {
     parameters.foreach( _.normalize )
   }
 
-  //type P<:Parameters
   def setParams( params:Parameters ):Unit
 
   var hmm = new DynamicBayesNet(0)

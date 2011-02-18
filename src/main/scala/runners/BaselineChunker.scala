@@ -130,7 +130,7 @@ object BaselineChunker {
         val testSet = testCorpus
 
         def converged( iterations:Int, deltaLogProb:Double ) =
-          iterations > 100 || ( math.abs( deltaLogProb ) < convergenceTolerance && iterations > 30 )
+          ( math.abs( deltaLogProb ) < convergenceTolerance && iterations > 30 )
       }
     )
 

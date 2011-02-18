@@ -182,9 +182,9 @@ class PlainHMM(
     // initial states:
     hmm.addHiddenTimedFactor(
       new CPT(
-        new TableFactor(
+        LogTableFactor.makeFromLogValues(
           Array( hiddenVariables(0), hiddenVariables(1) ),
-          (initialStateProbabilities * transitionMatrix ).toArray
+          (initialStateProbabilities * transitionMatrix ).toLogArray
         ),
         hiddenVariables(1)
       ),
@@ -194,9 +194,9 @@ class PlainHMM(
     ( 2 to (tokens.size-1) ) foreach{ i =>
       hmm.addHiddenTimedFactor(
         new CPT(
-          new TableFactor(
+          LogTableFactor.makeFromLogValues(
             Array( hiddenVariables(i-1), hiddenVariables(i) ),
-              transitionMatrix.toArray
+              transitionMatrix.toLogArray
           ),
           hiddenVariables(i)
         ),
@@ -213,9 +213,9 @@ class PlainHMM(
 
       hmm.addObservedTimedFactor(
         new CPT(
-          new TableFactor(
+          LogTableFactor.makeFromLogValues(
             Array( hiddenVariables(i), observations(i) ),
-            emissionMatrix.toArray
+            emissionMatrix.toLogArray
           ),
           observations(i),
           thisObservation
@@ -242,9 +242,9 @@ class PlainHMM(
     // initial states:
     hmm.addHiddenTimedFactor(
       new CPT(
-        new TableFactor(
+        LogTableFactor.makeFromLogValues(
           Array( hiddenVariables(0), hiddenVariables(1) ),
-          (initialStateProbabilities * transitionMatrix ).toArray
+          (initialStateProbabilities * transitionMatrix ).toLogArray
         ),
         hiddenVariables(1)
       ),
@@ -254,9 +254,9 @@ class PlainHMM(
     ( 2 to (tokens.size-1) ) foreach{ i =>
       hmm.addHiddenTimedFactor(
         new CPT(
-          new TableFactor(
+          LogTableFactor.makeFromLogValues(
             Array( hiddenVariables(i-1), hiddenVariables(i) ),
-              transitionMatrix.toArray
+              transitionMatrix.toLogArray
           ),
           hiddenVariables(i)
         ),
@@ -268,9 +268,9 @@ class PlainHMM(
     ( 0 to tokens.size-1 ) foreach { i =>
       hmm.addObservedTimedFactor(
         new CPT(
-          new TableFactor(
+          LogTableFactor.makeFromLogValues(
             Array( hiddenVariables(i), observations(i) ),
-            emissionMatrix.toArray
+            emissionMatrix.toLogArray
           ),
           observations(i)
         ),

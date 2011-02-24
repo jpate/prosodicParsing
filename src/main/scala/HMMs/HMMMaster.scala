@@ -86,7 +86,9 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
     }
   }
 
-  def emInit = ()
+  def emInit = {
+    println( "Initially, we are:\n" + toString );
+  }
 
 
   def receive = {
@@ -137,6 +139,7 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
   val viterbiHMM:ActorRef
 
   override def emInit {
+    println( "Initially, we are:\n" + toString() );
     viterbiHMM.start()
     viterbiHMM ! packageParameters
     viterbiHMM ! Viterbi( 0, testSet )

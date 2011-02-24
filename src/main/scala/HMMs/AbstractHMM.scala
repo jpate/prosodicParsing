@@ -49,9 +49,19 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
   def generalProbability( tokens:List[ObservedType] ) = {
     buildHMM( tokens )
 
+
+    println( "hmm is:")
+    hmm.dump
+
     val observationSequence = generateObservationSequence( tokens )
 
-    inferencer.queryLogForwardBackward( hmm, observationSequence )
+    val simpleLogProb = inferencer.queryLogForwardBackward( hmm, observationSequence)
+    val forwardBackwardProb = inferencer.queryLogForwardBackward( hmm, observationSequence )
+
+    println( "simpleLogProb: " + simpleLogProb )
+    println( "forwardBackwardProb: " + forwardBackwardProb )
+
+    forwardBackwardProb
   }
 
   def computePartialCounts( sequence:List[ObservedType] ):PartialCounts
@@ -62,6 +72,7 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
 
   def argmax( string:List[ObservedType] ) = {
     buildSlicedHMM( string )
+    //println( "slicedHMM for string " + string + " is:\n" + hmm.dumpToString() );
     val maxAssn = Models.bestAssignment( hmm, JunctionTreeInferencer.createForMaxProduct() )
     assignmentToViterbiString( maxAssn )
   }

@@ -32,60 +32,24 @@ class PlainHMM(
 
   //def hiddenIndexToLabel( index:Int ) = hiddenStateIndexToLabel( index )
 
-  def assignmentToViterbiString( maxAssn:Assignment ) =
+  //println( hiddenStateIndexToLabel );
+  def assignmentToViterbiString( maxAssn:Assignment ) = {
+    //println( "maxAssn: " + maxAssn.dumpToString() )
     hiddenVariables.map{ hiddenVar =>
       hiddenStateIndexToLabel( maxAssn.get( hiddenVar ) )
     }.toList
+  }
 
 
   val transitionMatrix =
     new ConditionalLogProbabilityDistribution( hiddenStateTypesSet, hiddenStateTypesSet )
-      // {
-      //   // For now we'll initialize to a uniform transition matrix and define a
-      //   // randomize method for people to have a random initialization whenever they
-      //   // like
-      //   var cpt = HashMap(
-      //     hiddenStateTypesSet.map( fromStateName =>
-      //         fromStateName -> (
-      //           HashMap(
-      //             hiddenStateTypesSet.map( toStateName =>
-      //               toStateName -> 1D/numHiddenStates ).toSeq: _*
-      //           )
-      //         )
-      //       ).toSeq: _*
-      //     )
-      // }
 
   val emissionMatrix =
     new ConditionalLogProbabilityDistribution ( hiddenStateTypesSet, observationTypesSet )
-      // {
-      //   var cpt = HashMap(
-      //     hiddenStateTypesSet.map( fromStateName =>
-      //         fromStateName -> (
-      //           HashMap(
-      //             observationTypes.map( toStateName =>
-      //               toStateName -> 1D/observationTypes.size 
-      //             ).toSeq: _*
-      //           )
-      //         )
-      //       ).toSeq: _*
-      //     )
-      // }
+
 
   val initialStateProbabilities = new LogProbabilityDistribution( hiddenStateTypesSet )
-      // {
-      //   var pt = HashMap(
-      //     hiddenStateTypes.map( thisStateName =>
-      //       thisStateName -> 1D/hiddenStateTypes.size
-      //     ).toSeq: _*
-      //   )
-      // }
 
-      // var parameters:Parameters = PlainHMMParameters(
-      //   initialStateProbabilities.pt,
-      //   transitionMatrix.cpt,
-      //   emissionMatrix.cpt
-      // )
   var parameters = List( initialStateProbabilities, transitionMatrix, emissionMatrix )
 
   def packageParameters = PlainHMMParameters(
@@ -148,21 +112,6 @@ class PlainHMM(
     setemissionMatrix( emissions )
   }
 
-          // def randomize(n:Int) {
-          //   transitionMatrix.randomize(n)
-          //   emissionMatrix.randomize(n)
-          //   initialStateProbabilities.randomize(n)
-          // }
-
-          // def normalize {
-          //   transitionMatrix.normalize
-          //   emissionMatrix.normalize
-          //   initialStateProbabilities.normalize
-          // }
-
-          // var hmm = new DirectedModel()
-          // var hiddenVariables:Array[Variable] = Array()
-          // var observations:Array[Variable] = Array()
 
   def buildSlicedHMM( tokens:List[ObservedState] ) {
     localUniverse = new Universe()
@@ -182,9 +131,9 @@ class PlainHMM(
     // initial states:
     hmm.addHiddenTimedFactor(
       new CPT(
-        LogTableFactor.makeFromLogValues(
+        new TableFactor(
           Array( hiddenVariables(0), hiddenVariables(1) ),
-          (initialStateProbabilities * transitionMatrix ).toLogArray
+          (initialStateProbabilities * transitionMatrix ).toArray
         ),
         hiddenVariables(1)
       ),
@@ -194,9 +143,9 @@ class PlainHMM(
     ( 2 to (tokens.size-1) ) foreach{ i =>
       hmm.addHiddenTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVariables(i-1), hiddenVariables(i) ),
-              transitionMatrix.toLogArray
+              transitionMatrix.toArray
           ),
           hiddenVariables(i)
         ),
@@ -213,9 +162,9 @@ class PlainHMM(
 
       hmm.addObservedTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVariables(i), observations(i) ),
-            emissionMatrix.toLogArray
+            emissionMatrix.toArray
           ),
           observations(i),
           thisObservation
@@ -242,9 +191,9 @@ class PlainHMM(
     // initial states:
     hmm.addHiddenTimedFactor(
       new CPT(
-        LogTableFactor.makeFromLogValues(
+        new TableFactor(
           Array( hiddenVariables(0), hiddenVariables(1) ),
-          (initialStateProbabilities * transitionMatrix ).toLogArray
+          (initialStateProbabilities * transitionMatrix ).toArray
         ),
         hiddenVariables(1)
       ),
@@ -254,9 +203,9 @@ class PlainHMM(
     ( 2 to (tokens.size-1) ) foreach{ i =>
       hmm.addHiddenTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVariables(i-1), hiddenVariables(i) ),
-              transitionMatrix.toLogArray
+              transitionMatrix.toArray
           ),
           hiddenVariables(i)
         ),
@@ -268,9 +217,9 @@ class PlainHMM(
     ( 0 to tokens.size-1 ) foreach { i =>
       hmm.addObservedTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVariables(i), observations(i) ),
-            emissionMatrix.toLogArray
+            emissionMatrix.toArray
           ),
           observations(i)
         ),
@@ -734,7 +683,7 @@ class PlainHMM(
           ).max * emissionMatrix(qTo)(w)
         }.toSeq:_*
       )
-      println( "simple argmax at w = "+w+": " + argmax( lastDelta ) )
+      //println( "simple argmax at w = "+w+": " + argmax( lastDelta ) )
     }
 
     val bestLastState = argmax( lastDelta )

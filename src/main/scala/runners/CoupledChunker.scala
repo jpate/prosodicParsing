@@ -135,6 +135,7 @@ object CoupledChunker {
       }
     )
 
+    println( "Initially, we are: " + manager.toString )
 
     manager.start
     manager ! Initialize

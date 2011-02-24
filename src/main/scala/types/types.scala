@@ -34,7 +34,7 @@ abstract class AbstractDistribution {
   def normalize:Unit
 }
 
-abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
+abstract class AbstractConditionalProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
   var cpt:HashMap[T,HashMap[U,Double]]
 
   def apply( k:T ) = cpt( k )
@@ -81,9 +81,12 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
 
 
 
+  val sortedParentKeys:List[T]
+  val sortedChildKeys:List[U]
+
   def toArray = {
-    cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
-      cpt(parent).keySet.toList.sortWith( (c,d) => c < d ).map{ child =>
+    sortedParentKeys.flatMap{ parent =>
+      sortedChildKeys.map{ child =>
         cpt(parent)(child)
       }
     }.toArray
@@ -91,8 +94,8 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
 
   def keySet = cpt.keySet
 
-  override def toString = cpt.keySet.toList.sortWith( (a,b) => a < b ).map{ parent =>
-    cpt(parent).keySet.toList.sortWith( (a,b) => a < b ).map{ ch =>
+  override def toString = sortedParentKeys.map{ parent =>
+    sortedChildKeys.map{ ch =>
       parent + " --> " +ch + ":\t" + cpt(parent)(ch)
     }.mkString("\n\t","\n\t","")
   }.mkString("","\n","\n")
@@ -156,17 +159,20 @@ abstract class AbstractConditionalLogProbabilityDistribution[T<:Label,U<:Label] 
     normalize
   }
 
+  val sortedParentKeys:List[T]
+  val sortedChildKeys:List[U]
+
   def toArray = {
-    cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
-      cpt(parent).keySet.toList.sortWith( (c,d) => c < d ).map{ child =>
+    sortedParentKeys.flatMap{ parent =>
+      sortedChildKeys.map{ child =>
         exp( cpt(parent)(child) )
       }
     }.toArray
   }
 
   def toLogArray = {
-    cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
-      cpt(parent).keySet.toList.sortWith( (c,d) => c < d ).map{ child =>
+    sortedParentKeys.flatMap{ parent =>
+      sortedChildKeys.map{ child =>
         cpt(parent)(child)
       }
     }.toArray
@@ -174,8 +180,8 @@ abstract class AbstractConditionalLogProbabilityDistribution[T<:Label,U<:Label] 
 
   def keySet = cpt.keySet
 
-  override def toString = cpt.keySet.toList.sortWith( (a,b) => a < b ).map{ parent =>
-    cpt(parent).keySet.toList.sortWith( (a,b) => a < b ).map{ ch =>
+  override def toString = sortedParentKeys.map{ parent =>
+    sortedChildKeys.map{ ch =>
       parent + " --> " +ch + ":\t" + exp( cpt(parent)(ch) )
     }.mkString("\n\t","\n\t","")
   }.mkString("","\n","\n")
@@ -183,6 +189,8 @@ abstract class AbstractConditionalLogProbabilityDistribution[T<:Label,U<:Label] 
 
 class ConditionalLogProbabilityDistribution[T<:Label,U<:Label]( parents:Set[T], children:Set[U] )
   extends AbstractConditionalLogProbabilityDistribution[T,U] {
+  val sortedParentKeys = parents.toList.sortWith( (a,b) => a < b )
+  val sortedChildKeys = children.toList.sortWith( (a,b) => a < b )
   var cpt = HashMap(
     parents.map( parent =>
         parent -> (
@@ -196,32 +204,6 @@ class ConditionalLogProbabilityDistribution[T<:Label,U<:Label]( parents:Set[T], 
     )
 }
 
-/*
-class LogProbDistWithStructuralZeros[T,U]( zeros:Set[Tuple2[T,U]], )
-  extends ConditionalLogProbabilityDistribution[T,U] {
-  var cpt:HashMap[T,HashMap[U,Double]]
-
-  override def randomize( seed:Int, centeredOn:Int ) {
-    import scala.util.Random
-    val r = new Random( seed )
-
-    cpt = HashMap(
-      cpt.keySet.map{ parent =>
-        parent -> HashMap(
-          cpt(parent).keySet.map{ child =>
-            if( zeros.contains( Tuple2( parent, child ) ) )
-              child -> Double.NegativeInfinity
-            else
-              child -> ( log( r.nextDouble + centeredOn ) )
-          }.toSeq:_*
-        )
-      }.toSeq:_*
-    )
-
-    normalize
-  }
-}
-*/
 
 abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDistribution {
   var pt:HashMap[T,Double]
@@ -230,8 +212,10 @@ abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDist
     pt = updatedPT
   }
 
-  def *[U<:Label]( otherCPT: ConditionalLogProbabilityDistribution[T,U] ) =
+  def *[U<:Label]( otherCPT: AbstractConditionalLogProbabilityDistribution[T,U] ) =
     new AbstractConditionalLogProbabilityDistribution[T,U] {
+      val sortedParentKeys = otherCPT.sortedParentKeys
+      val sortedChildKeys = otherCPT.sortedChildKeys
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (
@@ -245,13 +229,14 @@ abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDist
 
   def keySet = pt.keySet
 
-  def *[U<:Label]( otherCPT: ConditionalProbabilityDistribution[T,U] ) =
-    new ConditionalProbabilityDistribution[T,U] {
+  def *[U<:Label]( otherCPT: AbstractConditionalProbabilityDistribution[T,U] ) =
+    new AbstractConditionalProbabilityDistribution[T,U] {
+      val sortedParentKeys = otherCPT.sortedParentKeys
+      val sortedChildKeys = otherCPT.sortedChildKeys
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (
             otherCPT(parent).keySet.map{ child =>
-              //child -> ( exp( pt( parent ) + log( otherCPT( parent )( child ) ) ) )
               child -> ( pt( parent ) + log( otherCPT( parent )( child ) ) )
             }.toSeq:_*
           )
@@ -295,33 +280,38 @@ abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDist
     normalize
   }
 
-  def toArray = pt.keySet.toList.sortWith( (a,b) => a < b ).map( k => exp( pt(k) ) ).toArray
+  val sortedElements:List[T]
+  def toArray = sortedElements.map( k => exp( pt(k) ) ).toArray
+  def toLogArray = sortedElements.map( k => pt(k) ).toArray
 
   def apply( k:T ) = pt( k )
 
-  override def toString = pt.keySet.toList.sortWith( (a,b) => a < b ).map{ parent =>
+  override def toString = sortedElements.map{ parent =>
     parent + ":\t" + exp( pt(parent) )
   }.mkString("\n\t","\n\t","\n")
 }
 
 class LogProbabilityDistribution[T<:Label]( domain:Set[T] ) extends AbstractLogProbabilityDistribution[T] {
-    var pt = HashMap(
-      domain.map( element =>
-        element -> log( 1D/ domain.size )
-      ).toSeq: _*
-    )
+  val sortedElements = domain.toList.sortWith( (a,b) => a < b )
+  var pt = HashMap(
+    domain.map( element =>
+      element -> log( 1D/ domain.size )
+    ).toSeq: _*
+  )
 }
 
 
-abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
+abstract class AbstractProbabilityDistribution[T<:Label] extends AbstractDistribution {
   var pt:HashMap[T,Double]
 
   def setPT( updatedPT: HashMap[T,Double] ) {
     pt = updatedPT
   }
 
-  def *[U<:Label]( otherCPT: ConditionalLogProbabilityDistribution[T,U] ) =
+  def *[U<:Label]( otherCPT: AbstractConditionalLogProbabilityDistribution[T,U] ) =
     new AbstractConditionalLogProbabilityDistribution[T,U] {
+      val sortedParentKeys = otherCPT.sortedParentKeys
+      val sortedChildKeys = otherCPT.sortedChildKeys
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (
@@ -333,8 +323,10 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
       )
     }
 
-  def *[U<:Label]( otherCPT: ConditionalProbabilityDistribution[T,U] ) =
-    new ConditionalProbabilityDistribution[T,U] {
+  def *[U<:Label]( otherCPT: AbstractConditionalProbabilityDistribution[T,U] ) =
+    new AbstractConditionalProbabilityDistribution[T,U] {
+      val sortedParentKeys = otherCPT.sortedParentKeys
+      val sortedChildKeys = otherCPT.sortedChildKeys
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (
@@ -374,7 +366,8 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
     normalize
   }
 
-  def toArray = pt.keySet.toList.sortWith( (a,b) => a < b ).map( pt(_) ).toArray
+  def sortedElements:List[T]
+  def toArray = sortedElements.map( pt(_) ).toArray
 
   def apply( k:T ) = pt( k )
 

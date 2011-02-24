@@ -134,6 +134,7 @@ object BaselineChunker {
       }
     )
 
+    println( "Initially, we are: " + manager.toString )
 
     manager.start
     manager ! Initialize

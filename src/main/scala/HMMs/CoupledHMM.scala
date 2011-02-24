@@ -202,9 +202,9 @@ class CoupledHMM(
     // initial states:
     hmm.addHiddenTimedFactor(
       new CPT(
-        LogTableFactor.makeFromLogValues(
+        new TableFactor(
           Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarA(1) ),
-          ( initialStateProbabilities * transitionMatrixA).toLogArray
+          ( initialStateProbabilities * transitionMatrixA).toArray
           //( ( initialStateProbabilitiesA * initialStateProbabilitiesB ) * transitionMatrixA).toArray
         ),
         hiddenVarA(1)
@@ -213,9 +213,9 @@ class CoupledHMM(
     )
     hmm.addHiddenTimedFactor(
       new CPT(
-        LogTableFactor.makeFromLogValues(
+        new TableFactor(
           Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarB(1) ),
-          (initialStateProbabilities * transitionMatrixB).toLogArray
+          (initialStateProbabilities * transitionMatrixB).toArray
           //( initialStateProbabilitiesA * initialStateProbabilitiesB * transitionMatrixA).toArray
         ),
         hiddenVarB(1)
@@ -227,9 +227,9 @@ class CoupledHMM(
     ( 2 to (tokens.size-1) ) foreach{ i =>
       hmm.addHiddenTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVarA(i-1), hiddenVarB(i-1), hiddenVarA(i) ),
-            transitionMatrixA.toLogArray
+            transitionMatrixA.toArray
           ),
         hiddenVarA(i)
         ),
@@ -237,9 +237,9 @@ class CoupledHMM(
       )
       hmm.addHiddenTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVarA(i-1), hiddenVarB(i-1), hiddenVarB(i) ),
-            transitionMatrixB.toLogArray
+            transitionMatrixB.toArray
           ),
           hiddenVarB(i)
         ),
@@ -252,9 +252,9 @@ class CoupledHMM(
       //val ObservedStatePair( obsA, obsB ) = tokens(i)
       hmm.addObservedTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVarA(i), obsVarA(i) ),
-            emissionMatrixA.toLogArray
+            emissionMatrixA.toArray
           ),
           obsVarA(i)
         ),
@@ -262,9 +262,9 @@ class CoupledHMM(
       )
       hmm.addObservedTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVarB(i), obsVarB(i) ),
-            emissionMatrixB.toLogArray
+            emissionMatrixB.toArray
           ),
           obsVarB(i)
         ),
@@ -300,9 +300,9 @@ class CoupledHMM(
     // initial states:
     hmm.addHiddenTimedFactor(
       new CPT(
-        LogTableFactor.makeFromLogValues(
+        new TableFactor(
           Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarA(1) ),
-          (initialStateProbabilities * transitionMatrixA).toLogArray
+          (initialStateProbabilities * transitionMatrixA).toArray
         ),
         hiddenVarA(1)
       ),
@@ -310,9 +310,9 @@ class CoupledHMM(
     )
     hmm.addHiddenTimedFactor(
       new CPT(
-        LogTableFactor.makeFromLogValues(
+        new TableFactor(
           Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarB(1) ),
-          (initialStateProbabilities * transitionMatrixB).toLogArray
+          (initialStateProbabilities * transitionMatrixB).toArray
         ),
         hiddenVarB(1)
       ),
@@ -323,9 +323,9 @@ class CoupledHMM(
     ( 2 to (tokens.size-1) ) foreach{ i =>
       hmm.addHiddenTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVarA(i-1), hiddenVarB(i-1), hiddenVarA(i) ),
-            transitionMatrixA.toLogArray
+            transitionMatrixA.toArray
           ),
         hiddenVarA(i)
         ),
@@ -333,9 +333,9 @@ class CoupledHMM(
       )
       hmm.addHiddenTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVarA(i-1), hiddenVarB(i-1), hiddenVarB(i) ),
-            transitionMatrixB.toLogArray
+            transitionMatrixB.toArray
           ),
           hiddenVarB(i)
         ),
@@ -360,9 +360,9 @@ class CoupledHMM(
 
       hmm.addObservedTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVarA(i), obsVarA(i) ),
-            emissionMatrixA.toLogArray
+            emissionMatrixA.toArray
           ),
           obsVarA(i),
           assignmentA
@@ -371,9 +371,9 @@ class CoupledHMM(
       )
       hmm.addObservedTimedFactor(
         new CPT(
-          LogTableFactor.makeFromLogValues(
+          new TableFactor(
             Array( hiddenVarB(i), obsVarB(i) ),
-            emissionMatrixB.toLogArray
+            emissionMatrixB.toArray
           ),
           obsVarB(i),
           assignmentB

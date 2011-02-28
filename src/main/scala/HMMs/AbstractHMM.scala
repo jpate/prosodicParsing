@@ -46,12 +46,28 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
   def generateObservationSequence( tokens:List[ObservedType] ):Assignment
 
   val inferencer = new ForwardBackwardInferencer()
+  //val inferencer = new JunctionTreeInferencer()
   def generalProbability( tokens:List[ObservedType] ) = {
     buildHMM( tokens )
-
     val observationSequence = generateObservationSequence( tokens )
 
-    inferencer.queryLogForwardBackward( hmm, observationSequence )
+    //println( "Computing querySimpleLogProb" )
+    val simpleProb = inferencer.querySimpleLogProb( hmm, observationSequence )
+
+    //println( "simpleProb is: " + simpleProb )
+
+
+
+    // println( "Computing forwardBackwardProb" )
+    //val forwardBackwardProb = inferencer.queryLogForwardBackward( hmm, observationSequence )
+
+    // println( "forwardBackwardProb is: " + forwardBackwardProb )
+
+    simpleProb
+    //forwardBackwardProb
+
+
+    // forwardBackwardProb
   }
 
   def computePartialCounts( sequence:List[ObservedType] ):PartialCounts

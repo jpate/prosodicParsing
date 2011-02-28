@@ -295,6 +295,8 @@ abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDist
     normalize
   }
 
+  def toLogArray = pt.keySet.toList.sortWith( (a,b) => a < b ).map( k => pt(k) ).toArray
+
   def toArray = pt.keySet.toList.sortWith( (a,b) => a < b ).map( k => exp( pt(k) ) ).toArray
 
   def apply( k:T ) = pt( k )

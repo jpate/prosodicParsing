@@ -197,6 +197,26 @@ class CoupledHMM(
       obsVarB( i ).setLabel("observation.B"+i)
     }
 
+    /*
+    println( "^^^^^^^^^^" )
+    println( transitionMatrixA )
+    println( "---" )
+    println( transitionMatrixA.toArray.mkString("\t","\n\t","") )
+    println( "---" )
+    println(
+      new CPT(
+        LogTableFactor.makeFromLogValues(
+          Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarA(1) ),
+          transitionMatrixA.toArray
+          //( initialStateProbabilities * transitionMatrixA).toArray
+          //( ( initialStateProbabilitiesA * initialStateProbabilitiesB ) * transitionMatrixA).toArray
+        ),
+        hiddenVarA(1)
+      ).dumpToString()
+    )
+    println("________________")
+    */
+
 
 
     // initial states:
@@ -204,7 +224,8 @@ class CoupledHMM(
       new CPT(
         LogTableFactor.makeFromLogValues(
           Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarA(1) ),
-          ( initialStateProbabilities * transitionMatrixA).toLogArray
+          transitionMatrixA.toLogArray
+          //( initialStateProbabilities * transitionMatrixA).toArray
           //( ( initialStateProbabilitiesA * initialStateProbabilitiesB ) * transitionMatrixA).toArray
         ),
         hiddenVarA(1)
@@ -215,14 +236,20 @@ class CoupledHMM(
       new CPT(
         LogTableFactor.makeFromLogValues(
           Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarB(1) ),
-          (initialStateProbabilities * transitionMatrixB).toLogArray
+          transitionMatrixB.toLogArray
+          //(initialStateProbabilities * transitionMatrixB).toArray
           //( initialStateProbabilitiesA * initialStateProbabilitiesB * transitionMatrixA).toArray
         ),
         hiddenVarB(1)
       ),
       0
     )
-
+    hmm.addInitialStateProbabilities(
+      LogTableFactor.makeFromLogValues(
+        Array( hiddenVarA(0) , hiddenVarB(0) ),
+        initialStateProbabilities.toLogArray
+      )
+    )
 
     ( 2 to (tokens.size-1) ) foreach{ i =>
       hmm.addHiddenTimedFactor(

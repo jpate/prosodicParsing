@@ -165,7 +165,6 @@ class PlainHMM(
           // var observations:Array[Variable] = Array()
 
   def buildSlicedHMM( tokens:List[ObservedState] ) {
-    localUniverse = new Universe()
     hmm = new DynamicBayesNet(tokens.size)
 
 
@@ -226,7 +225,6 @@ class PlainHMM(
   }
 
   def buildHMM( tokens:List[ObservedState] ) {
-    localUniverse = new Universe()
     hmm = new DynamicBayesNet(tokens.size)
 
 
@@ -281,7 +279,9 @@ class PlainHMM(
 
 
   def generateObservationSequence( tokens:List[ObservedState] ) = new Assignment(
-      observations, tokens.map( w => observationAlphabet.lookupIndex( w ) ).toArray
+      observations, tokens.map{ w =>
+        observationAlphabet.lookupIndex( w )
+      }.toArray
     )
 
 

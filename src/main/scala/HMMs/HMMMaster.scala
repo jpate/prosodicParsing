@@ -180,6 +180,8 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
       println( "EM Done! final HMM:\n\n" + toString )
       emEnd
     } else {
+      println( "We are:" )
+      println( toString )
       lastCorpusLogProb = corpusLogProb
       iterationStart
     }

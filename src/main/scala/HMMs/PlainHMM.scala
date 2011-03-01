@@ -86,7 +86,8 @@ class PlainHMM(
       //   transitionMatrix.cpt,
       //   emissionMatrix.cpt
       // )
-  var parameters = List( initialStateProbabilities, transitionMatrix, emissionMatrix )
+
+  def parameters = List( initialStateProbabilities, transitionMatrix, emissionMatrix )
 
   def packageParameters = PlainHMMParameters(
     initialStateProbabilities.pt,
@@ -183,12 +184,20 @@ class PlainHMM(
       new CPT(
         LogTableFactor.makeFromLogValues(
           Array( hiddenVariables(0), hiddenVariables(1) ),
-          (initialStateProbabilities * transitionMatrix ).toLogArray
+          transitionMatrix.toLogArray
+          //(initialStateProbabilities * transitionMatrix ).toLogArray
         ),
         hiddenVariables(1)
       ),
       0
     )
+    hmm.addInitialStateProbabilities(
+      LogTableFactor.makeFromLogValues(
+        Array( hiddenVariables(0) ),
+        initialStateProbabilities.toLogArray
+      )
+    )
+
     // state transitions
     ( 2 to (tokens.size-1) ) foreach{ i =>
       hmm.addHiddenTimedFactor(
@@ -242,12 +251,22 @@ class PlainHMM(
       new CPT(
         LogTableFactor.makeFromLogValues(
           Array( hiddenVariables(0), hiddenVariables(1) ),
-          (initialStateProbabilities * transitionMatrix ).toLogArray
+          transitionMatrix.toLogArray
+          //(initialStateProbabilities * transitionMatrix ).toLogArray
         ),
         hiddenVariables(1)
       ),
       0
     )
+    hmm.addInitialStateProbabilities(
+      LogTableFactor.makeFromLogValues(
+        Array( hiddenVariables(0) ),
+        initialStateProbabilities.toLogArray
+      )
+    )
+
+
+
     // state transitions
     ( 2 to (tokens.size-1) ) foreach{ i =>
       hmm.addHiddenTimedFactor(
@@ -748,84 +767,6 @@ class PlainHMM(
 
     bestPath
   }
-
-  def viterbi_old( s: List[ObservedState] ) = {
-    def argmax( h:HashMap[HiddenState,Double] ):HiddenState =
-      h.keySet.reduceLeft{ (p, q) => if( h(p) > h(q) ) p else q }
-
-    def viterbi_aux(
-      backtrace:List[HashMap[HiddenState,HiddenState]], // psi
-      previousState:HashMap[HiddenState,Double], // delta
-      remaining:List[ObservedState]
-    ):List[HashMap[HiddenState,HiddenState]] = {
-      if( remaining == Nil )
-        backtrace :+
-         HashMap(
-           argmax( previousState ) -> argmax( previousState )
-         )
-      else
-        viterbi_aux(
-          backtrace :+
-          HashMap(
-            hiddenStateTypes.map{ to =>
-              to -> argmax(
-                HashMap(
-                  previousState.keySet.map{ from =>
-                    from -> previousState(from) * transitionMatrix(from)(to)
-                  }.toSeq:_*
-                )
-              )
-            }.toSeq:_*
-          ),
-          HashMap(
-            hiddenStateTypes.map{ to =>
-              to -> (
-                previousState.keySet.map{ from =>
-                  previousState(from) * transitionMatrix(from)(to)
-                }.max
-              ) * emissionMatrix(to)(remaining.head)
-            }.toSeq:_*
-          ),
-          remaining.tail
-        )
-    }
-
-    def backtraceReadout( backtrace: List[HashMap[HiddenState,HiddenState]] ) = {
-      def backtraceReadout_aux(
-        optimalSequence:List[HiddenState],
-        bestToState:HiddenState,
-        bt_remaining:List[HashMap[HiddenState,HiddenState]]
-      ):List[HiddenState] =
-        if( bt_remaining == Nil )
-          bestToState::optimalSequence
-        else
-          backtraceReadout_aux(
-            bestToState::optimalSequence,
-            bt_remaining.last(bestToState),
-            bt_remaining.init
-          )
-
-        assert( backtrace.last.keySet.toList.size == 1 )
-        backtraceReadout_aux(
-          Nil,
-          backtrace.last.keySet.toList(0),
-          backtrace.init
-        )
-    }
-
-    backtraceReadout(
-      viterbi_aux(
-        Nil,
-        HashMap(
-          hiddenStateTypes.map{ q =>
-            q -> initialStateProbabilities(q) * emissionMatrix(q)(s.head)
-          }.toSeq:_*
-        ),
-        s.tail
-      )
-    )
-  }
-
 
   def totalProbability( allObservations:List[ObservedState] ):Double = {
     def forwardPass( allObservations:List[ObservedState] ) = {

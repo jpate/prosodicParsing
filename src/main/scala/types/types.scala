@@ -34,7 +34,8 @@ abstract class AbstractDistribution {
   def normalize:Unit
 }
 
-abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
+abstract class AbstractConditionalProbabilityDistribution[T<:Label,U<:Label]
+  extends AbstractDistribution {
   var cpt:HashMap[T,HashMap[U,Double]]
 
   def apply( k:T ) = cpt( k )
@@ -80,11 +81,21 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
   }
 
 
+  val sortedParents:List[T]
+  val sortedChildren:List[U]
 
   def toArray = {
-    cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
-      cpt(parent).keySet.toList.sortWith( (c,d) => c < d ).map{ child =>
+    sortedParents.flatMap{ parent =>
+      sortedChildren.map{ child =>
         cpt(parent)(child)
+      }
+    }.toArray
+  }
+
+  def toLogArray = {
+    sortedParents.flatMap{ parent =>
+      sortedChildren.map{ child =>
+        math.log( cpt(parent)(child) )
       }
     }.toArray
   }
@@ -98,7 +109,25 @@ abstract class ConditionalProbabilityDistribution[T<:Label,U<:Label] extends Abs
   }.mkString("","\n","\n")
 }
 
-abstract class AbstractConditionalLogProbabilityDistribution[T<:Label,U<:Label] extends AbstractDistribution {
+class ConditionalProbabilityDistribution[T<:Label,U<:Label]( parents:Set[T], children:Set[U] )
+  extends AbstractConditionalProbabilityDistribution[T,U] {
+  val sortedParents = parents.toList.sortWith( (a,b) => a < b)
+  val sortedChildren = children.toList.sortWith( (a,b) => a < b)
+  var cpt = HashMap(
+    parents.map( parent =>
+        parent -> (
+          HashMap(
+            children.map( child =>
+              child -> 1D/children.size
+            ).toSeq: _*
+          )
+        )
+      ).toSeq: _*
+    )
+}
+
+abstract class AbstractConditionalLogProbabilityDistribution[T<:Label,U<:Label]
+  extends AbstractDistribution {
   import math.{exp,log}
 
   var cpt:HashMap[T,HashMap[U,Double]]
@@ -156,17 +185,19 @@ abstract class AbstractConditionalLogProbabilityDistribution[T<:Label,U<:Label] 
     normalize
   }
 
+  val sortedParents:List[T]
+  val sortedChildren:List[U]
   def toArray = {
-    cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
-      cpt(parent).keySet.toList.sortWith( (c,d) => c < d ).map{ child =>
+    sortedParents.flatMap{ parent =>
+      sortedChildren.map{ child =>
         exp( cpt(parent)(child) )
       }
     }.toArray
   }
 
   def toLogArray = {
-    cpt.keySet.toList.sortWith( (a,b) => a < b ).flatMap{ parent =>
-      cpt(parent).keySet.toList.sortWith( (c,d) => c < d ).map{ child =>
+    sortedParents.flatMap{ parent =>
+      sortedChildren.map{ child =>
         cpt(parent)(child)
       }
     }.toArray
@@ -174,8 +205,8 @@ abstract class AbstractConditionalLogProbabilityDistribution[T<:Label,U<:Label] 
 
   def keySet = cpt.keySet
 
-  override def toString = cpt.keySet.toList.sortWith( (a,b) => a < b ).map{ parent =>
-    cpt(parent).keySet.toList.sortWith( (a,b) => a < b ).map{ ch =>
+  override def toString = sortedParents.map{ parent =>
+    sortedChildren.map{ ch =>
       parent + " --> " +ch + ":\t" + exp( cpt(parent)(ch) )
     }.mkString("\n\t","\n\t","")
   }.mkString("","\n","\n")
@@ -183,6 +214,8 @@ abstract class AbstractConditionalLogProbabilityDistribution[T<:Label,U<:Label] 
 
 class ConditionalLogProbabilityDistribution[T<:Label,U<:Label]( parents:Set[T], children:Set[U] )
   extends AbstractConditionalLogProbabilityDistribution[T,U] {
+  val sortedParents = parents.toList.sortWith( (a,b) => a < b)
+  val sortedChildren = children.toList.sortWith( (a,b) => a < b)
   var cpt = HashMap(
     parents.map( parent =>
         parent -> (
@@ -196,32 +229,29 @@ class ConditionalLogProbabilityDistribution[T<:Label,U<:Label]( parents:Set[T], 
     )
 }
 
-/*
-class LogProbDistWithStructuralZeros[T,U]( zeros:Set[Tuple2[T,U]], )
-  extends ConditionalLogProbabilityDistribution[T,U] {
-  var cpt:HashMap[T,HashMap[U,Double]]
-
-  override def randomize( seed:Int, centeredOn:Int ) {
-    import scala.util.Random
-    val r = new Random( seed )
+class SmoothedConditionalLogProbabilityDistribution[T<:Label,U<:Label](lambda:Double, parents:Set[T], children:Set[U] )
+  extends ConditionalLogProbabilityDistribution[T,U](parents,children) {
+  override def normalize {
+    val maxes = HashMap(
+      cpt.keySet.map( parent =>
+        parent -> ( cpt(parent).values.reduceLeft( (a,b) => Maths.sumLogProb(Array(a,b,lambda )) ) )
+      ).toSeq:_*
+    )
 
     cpt = HashMap(
       cpt.keySet.map{ parent =>
         parent -> HashMap(
           cpt(parent).keySet.map{ child =>
-            if( zeros.contains( Tuple2( parent, child ) ) )
-              child -> Double.NegativeInfinity
-            else
-              child -> ( log( r.nextDouble + centeredOn ) )
+            child -> (
+              Maths.sumLogProb( cpt(parent)(child), lambda ) -
+              maxes(parent)
+            )
           }.toSeq:_*
         )
       }.toSeq:_*
     )
-
-    normalize
   }
 }
-*/
 
 abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDistribution {
   var pt:HashMap[T,Double]
@@ -232,6 +262,8 @@ abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDist
 
   def *[U<:Label]( otherCPT: ConditionalLogProbabilityDistribution[T,U] ) =
     new AbstractConditionalLogProbabilityDistribution[T,U] {
+      val sortedParents = otherCPT.sortedParents
+      val sortedChildren = otherCPT.sortedChildren
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (
@@ -246,7 +278,9 @@ abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDist
   def keySet = pt.keySet
 
   def *[U<:Label]( otherCPT: ConditionalProbabilityDistribution[T,U] ) =
-    new ConditionalProbabilityDistribution[T,U] {
+    new AbstractConditionalProbabilityDistribution[T,U] {
+      val sortedParents = otherCPT.sortedParents
+      val sortedChildren = otherCPT.sortedChildren
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (
@@ -295,9 +329,9 @@ abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDist
     normalize
   }
 
-  def toLogArray = pt.keySet.toList.sortWith( (a,b) => a < b ).map( k => pt(k) ).toArray
-
-  def toArray = pt.keySet.toList.sortWith( (a,b) => a < b ).map( k => exp( pt(k) ) ).toArray
+  val sortedDomain:List[T]
+  def toLogArray = sortedDomain.map( k => pt(k) ).toArray
+  def toArray = sortedDomain.map( k => exp( pt(k) ) ).toArray
 
   def apply( k:T ) = pt( k )
 
@@ -306,12 +340,32 @@ abstract class AbstractLogProbabilityDistribution[T<:Label] extends AbstractDist
   }.mkString("\n\t","\n\t","\n")
 }
 
-class LogProbabilityDistribution[T<:Label]( domain:Set[T] ) extends AbstractLogProbabilityDistribution[T] {
+class LogProbabilityDistribution[T<:Label]( domain:Set[T] )
+  extends AbstractLogProbabilityDistribution[T] {
+    val sortedDomain = domain.toList.sortWith( (a,b) => a < b )
     var pt = HashMap(
       domain.map( element =>
         element -> log( 1D/ domain.size )
       ).toSeq: _*
     )
+}
+
+class SmoothedLogProbabilityDistribution[T<:Label](lambda:Double, domain:Set[T] )
+  extends LogProbabilityDistribution[T] (domain) {
+
+  override def normalize {
+    val max = pt.values.reduceLeft( (a,b) => Maths.sumLogProb( Array( a,b,lambda ) ) )
+
+    pt = HashMap(
+      pt.keySet.map{ parent =>
+        parent -> (
+          Maths.sumLogProb( pt(parent), lambda) -
+          max
+        )
+      }.toSeq:_*
+    )
+  }
+
 }
 
 
@@ -324,6 +378,8 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
 
   def *[U<:Label]( otherCPT: ConditionalLogProbabilityDistribution[T,U] ) =
     new AbstractConditionalLogProbabilityDistribution[T,U] {
+      val sortedParents = otherCPT.sortedParents
+      val sortedChildren = otherCPT.sortedChildren
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (
@@ -336,7 +392,9 @@ abstract class ProbabilityDistribution[T<:Label] extends AbstractDistribution {
     }
 
   def *[U<:Label]( otherCPT: ConditionalProbabilityDistribution[T,U] ) =
-    new ConditionalProbabilityDistribution[T,U] {
+    new AbstractConditionalProbabilityDistribution[T,U] {
+      val sortedParents = otherCPT.sortedParents
+      val sortedChildren = otherCPT.sortedChildren
       var cpt = HashMap(
         otherCPT.keySet.map{ parent =>
           parent -> HashMap (

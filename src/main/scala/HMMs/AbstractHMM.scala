@@ -14,7 +14,8 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
   //var matrices:Set[AbstractDistribution]
   //var parameters:Parameters
   //type Dist<:AbstractDistribution
-  var parameters:List[AbstractDistribution]
+  //var parameters:List[AbstractDistribution]
+  def parameters:List[AbstractDistribution]
 
   val observationTypes = observationTypesSet.toList.sortWith( (a,b) => a < b )
   val hiddenStateTypes = hiddenStateTypesSet.toList.sortWith( (a,b) => a < b )
@@ -52,7 +53,8 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
     val observationSequence = generateObservationSequence( tokens )
 
     //println( "Computing querySimpleLogProb" )
-    val simpleProb = inferencer.querySimpleLogProb( hmm, observationSequence )
+    val simpleProb =
+      ForwardBackwardInferencer.createForUnnormalizedSumProduct.querySimpleLogProb( hmm, observationSequence )
 
     //println( "simpleProb is: " + simpleProb )
 

@@ -30,7 +30,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
   var summingPartialCounts = initialPartialCounts
 
-  var parameters:List[AbstractDistribution]
+  def parameters:List[AbstractDistribution]
   def setParams( params:Parameters )
   def normalize:Unit
 
@@ -95,7 +95,9 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       toSend = trainingData
       received = 0
 
+
       hmms.foreach( _ ! Initialize )
+      println( "We are:"+toString )
       iterationStart
     }
 
@@ -115,6 +117,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
         }
       }
     }
+
     case Tuple2( numSentences:Int, pc:PartialCounts ) => {
       summingPartialCounts = summingPartialCounts + pc
       received += numSentences
@@ -122,11 +125,14 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
         iterationEnd
       }
     }
+
     case Stop => {
       hmms.foreach{_.stop}
       //exit
     }
+
     case Randomize( seed:Int, centeredOn:Int) => randomize( seed, centeredOn )
+
     case somethingElse:Any => println( "Manager got something else:\n" + somethingElse )
   }
 }
@@ -180,8 +186,6 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
       println( "EM Done! final HMM:\n\n" + toString )
       emEnd
     } else {
-      println( "We are:" )
-      println( toString )
       lastCorpusLogProb = corpusLogProb
       iterationStart
     }

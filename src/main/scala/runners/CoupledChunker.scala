@@ -85,6 +85,11 @@ object CoupledChunker {
         }
     }.filter{ s => s.size > 2 }//&& s.size < 20 }
 
+    var observationTypes = Set( corpus.flatten).flatten.toSet
+
+    observationTypes = observationTypes ++ observationTypes.map{
+      case ObservedStatePair( _,p ) => p
+    }.map{ p => ObservedStatePair( "UNK", p ) }
 
     val testCorpus = io.Source.fromFile( testDataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
@@ -92,7 +97,10 @@ object CoupledChunker {
         tokenized.head,
         tokenized.tail.map{ w =>
           val Array( word, prosody ) = w.split( "#" )
-          ObservedStatePair( word, prosody )
+          if( observationTypes.exists( _.obs1 == word ) )
+            ObservedStatePair( word, prosody )
+          else
+            ObservedStatePair( "UNK", prosody )
         }
       )
     }.filter{ s => s.size > 2 }//&& s.size < 25 }
@@ -101,7 +109,7 @@ object CoupledChunker {
     println( corpus.size + " training sentences" )
     println( testCorpus.size + " dev sentences" )
 
-    val observationTypes = Set( corpus.flatten).flatten.toSet
+
 
     //println( hiddenStates.size + " hidden states: " + hiddenStates.mkString("",", ",".") )
 
@@ -109,7 +117,8 @@ object CoupledChunker {
     // observationTypes.mkString("\t","\n\t","\n" ) )
 
     val manager = actorOf(
-        new CoupledHMM(hiddenStates,observationTypes,"Master") with HMMMaster[HiddenStatePair,ObservedStatePair]
+        new CoupledHMM(hiddenStates,observationTypes,"Master")
+        with HMMMaster[HiddenStatePair,ObservedStatePair]
         with EvaluatingMaster[HiddenStatePair,ObservedStatePair] {
         val trainingData = corpus
 
@@ -127,6 +136,15 @@ object CoupledChunker {
         transitionMatrixA.zeroAll( transitionsToZero )
         initialStateProbabilities.zeroAll( initialStatesToZero )
 
+        println( parameters )
+
+        println( "---" )
+        emissionMatrixA =
+          new SmoothedConditionalLogProbabilityDistribution( 0.5, hiddATypes.toSet, obsATypes )
+        emissionMatrixA.randomize( randSeed, 10 )
+
+        println( parameters )
+
         val frequency = 4
         val testSet = testCorpus
 
@@ -135,11 +153,9 @@ object CoupledChunker {
       }
     )
 
-    println( "Initially, we are: " + manager.toString )
 
     manager.start
     manager ! Initialize
-    println( "Starting HMM: ")
     manager.start()
   }
 }

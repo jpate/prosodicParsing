@@ -14,7 +14,7 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
   //var matrices:Set[AbstractDistribution]
   //var parameters:Parameters
   //type Dist<:AbstractDistribution
-  var parameters:List[AbstractDistribution]
+  def parameters:List[AbstractDistribution]
 
   val observationTypes = observationTypesSet.toList.sortWith( (a,b) => a < b )
   val hiddenStateTypes = hiddenStateTypesSet.toList.sortWith( (a,b) => a < b )
@@ -49,19 +49,11 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
   def generalProbability( tokens:List[ObservedType] ) = {
     buildHMM( tokens )
 
-
-    println( "hmm is:")
-    hmm.dump
-
     val observationSequence = generateObservationSequence( tokens )
 
-    val simpleLogProb = inferencer.queryLogForwardBackward( hmm, observationSequence)
-    val forwardBackwardProb = inferencer.queryLogForwardBackward( hmm, observationSequence )
-
-    println( "simpleLogProb: " + simpleLogProb )
-    println( "forwardBackwardProb: " + forwardBackwardProb )
-
-    forwardBackwardProb
+    val simpleLogProb =
+      ForwardBackwardInferencer.createForUnnormalizedSumProduct.querySimpleLogProb( hmm, observationSequence )
+    simpleLogProb
   }
 
   def computePartialCounts( sequence:List[ObservedType] ):PartialCounts
@@ -72,7 +64,6 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
 
   def argmax( string:List[ObservedType] ) = {
     buildSlicedHMM( string )
-    //println( "slicedHMM for string " + string + " is:\n" + hmm.dumpToString() );
     val maxAssn = Models.bestAssignment( hmm, JunctionTreeInferencer.createForMaxProduct() )
     assignmentToViterbiString( maxAssn )
   }

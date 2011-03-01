@@ -30,7 +30,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
 
   var summingPartialCounts = initialPartialCounts
 
-  var parameters:List[AbstractDistribution]
+  def parameters:List[AbstractDistribution]
   def setParams( params:Parameters )
   def normalize:Unit
 
@@ -86,9 +86,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
     }
   }
 
-  def emInit = {
-    println( "Initially, we are:\n" + toString );
-  }
+  def emInit = ()
 
 
   def receive = {
@@ -97,7 +95,9 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       toSend = trainingData
       received = 0
 
+
       hmms.foreach( _ ! Initialize )
+      println( "We are:"+toString )
       iterationStart
     }
 
@@ -117,6 +117,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
         }
       }
     }
+
     case Tuple2( numSentences:Int, pc:PartialCounts ) => {
       summingPartialCounts = summingPartialCounts + pc
       received += numSentences
@@ -124,11 +125,14 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
         iterationEnd
       }
     }
+
     case Stop => {
       hmms.foreach{_.stop}
       //exit
     }
+
     case Randomize( seed:Int, centeredOn:Int) => randomize( seed, centeredOn )
+
     case somethingElse:Any => println( "Manager got something else:\n" + somethingElse )
   }
 }
@@ -139,7 +143,6 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
   val viterbiHMM:ActorRef
 
   override def emInit {
-    println( "Initially, we are:\n" + toString() );
     viterbiHMM.start()
     viterbiHMM ! packageParameters
     viterbiHMM ! Viterbi( 0, testSet )

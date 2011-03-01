@@ -42,7 +42,7 @@ class PlainHMM(
   val transitionMatrix =
     new ConditionalLogProbabilityDistribution( hiddenStateTypesSet, hiddenStateTypesSet )
 
-  val emissionMatrix =
+  var emissionMatrix =
     new ConditionalLogProbabilityDistribution ( hiddenStateTypesSet, observationTypesSet )
 
   val initialStateProbabilities = new LogProbabilityDistribution( hiddenStateTypesSet )

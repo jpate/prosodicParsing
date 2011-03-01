@@ -84,13 +84,21 @@ object BaselineChunker {
         }
     }.filter{ s => s.size > 2 }//&& s.size < 20 }
 
+    val observationTypes = Set( corpus.flatten).flatten.toSet + ObservedState( "UNK" )
 
+    var unknownTokens = 0
     val testCorpus = io.Source.fromFile( testDataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
       ViterbiString(
         tokenized.head,
         tokenized.tail.map{ w =>
-          ObservedState( w.split( "#" )(whichStream) )
+          val relevantToken = w.split( "#" )(whichStream)
+          if( observationTypes.exists( _.s == relevantToken ) ) {
+             ObservedState( relevantToken )
+          } else {
+            unknownTokens += 1
+            ObservedState(  "UNK" )
+          }
         }
       )
     }.filter{ s => s.size > 2 }//&& s.size < 25 }
@@ -98,8 +106,8 @@ object BaselineChunker {
     println( "random seed: " + randSeed )
     println( corpus.size + " training sentences" )
     println( testCorpus.size + " dev sentences" )
+    println( unknownTokens + " unknown tokens in dev set" )
 
-    val observationTypes = Set( corpus.flatten).flatten.toSet
 
     //println( hiddenStates.size + " hidden states: " + hiddenStates.mkString("",", ",".") )
 
@@ -125,6 +133,9 @@ object BaselineChunker {
         transitionMatrix.zeroAll( transitionsToZero )
         initialStateProbabilities.zeroAll( initialStatesToZero )
 
+        emissionMatrix =
+          new SmoothedConditionalLogProbabilityDistribution( 0.1, chunkingStates,
+          observationTypes.toSet )
 
         val frequency = 4
         val testSet = testCorpus

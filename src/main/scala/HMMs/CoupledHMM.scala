@@ -693,7 +693,7 @@ class CoupledHMM(
         // first add up for the A stream
         hiddATypes.foreach{ qToA =>
 
-          val thistransitionCountA = transitionA.logValue(
+          val thisTransitionCountA = transitionA.logValue(
             new Assignment(
               Array( fromVarA, fromVarB, toVarA ),
               Array(
@@ -709,25 +709,29 @@ class CoupledHMM(
               //     "<<< HiddenState(\"C_B\") is " + hiddAlphA.lookupIndex(qFromA ) + " ;  " +
               //     "HiddenState(\"C_O\") is " + hiddAlphA.lookupIndex(qToA ) + " ;  " +
               //     "qFromB is " + qFromB + " ; " +
-              //     thistransitionCountA + " >>>" 
+              //     thisTransitionCountA + " >>>" 
               //   )
               // }
 
           if( i == 0 ) {
             initialStateCounts( qsFrom ) = Maths.sumLogProb(
                 initialStateCounts( qsFrom ),
-                thistransitionCountA
+                thisTransitionCountA
             )
           }
 
           transitionCountsA(qsFrom)(qToA) = Maths.sumLogProb(
               transitionCountsA(qsFrom)(qToA),
-              thistransitionCountA
+              thisTransitionCountA
           )
+
+          if( obsA == "UNK" && thisTransitionCountA != Double.NegativeInfinity ) {
+            println( "Woops giving " + thisTransitionCountA + " counts to UNK" )
+          }
 
           emissionCountsA(qFromA)( ObservedState(obsA) ) = Maths.sumLogProb(
               emissionCountsA(qFromA)( ObservedState(obsA) ),
-              thistransitionCountA
+              thisTransitionCountA
           )
 
           if( i == tokens.size - 2 ) {
@@ -735,7 +739,7 @@ class CoupledHMM(
 
             emissionCountsA(qToA)( ObservedState(lastObsAString) ) = Maths.sumLogProb(
                 emissionCountsA(qToA)( ObservedState(lastObsAString) ),
-                thistransitionCountA
+                thisTransitionCountA
             )
           }
 
@@ -743,7 +747,7 @@ class CoupledHMM(
 
         hiddBTypes.foreach{ qToB =>
 
-          val thistransitionCountB = transitionB.logValue(
+          val thisTransitionCountB = transitionB.logValue(
             new Assignment(
               Array( fromVarA, fromVarB, toVarB ),
               Array(
@@ -757,18 +761,18 @@ class CoupledHMM(
           if( i == 0 ) {
             initialStateCounts( qsFrom ) = Maths.sumLogProb(
                 initialStateCounts( qsFrom ),
-                thistransitionCountB
+                thisTransitionCountB
             )
           }
 
           transitionCountsB(qsFrom)(qToB) = Maths.sumLogProb(
               transitionCountsB(qsFrom)(qToB),
-              thistransitionCountB
+              thisTransitionCountB
           )
 
           emissionCountsB(qFromB)( ObservedState(obsB) ) = Maths.sumLogProb(
               emissionCountsB(qFromB)( ObservedState(obsB) ),
-              thistransitionCountB
+              thisTransitionCountB
           )
 
           if( i == tokens.size - 2 ) {
@@ -776,7 +780,7 @@ class CoupledHMM(
 
             emissionCountsB(qToB)( ObservedState(lastObsBString) ) = Maths.sumLogProb(
                 emissionCountsB(qToB)( ObservedState(lastObsBString) ),
-                thistransitionCountB
+                thisTransitionCountB
             )
           }
 

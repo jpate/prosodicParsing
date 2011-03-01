@@ -91,23 +91,28 @@ object CoupledChunker {
       case ObservedStatePair( _,p ) => p
     }.map{ p => ObservedStatePair( "UNK", p ) }
 
+    var unknownTokens = 0
     val testCorpus = io.Source.fromFile( testDataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
       ViterbiString(
         tokenized.head,
         tokenized.tail.map{ w =>
           val Array( word, prosody ) = w.split( "#" )
-          if( observationTypes.exists( _.obs1 == word ) )
+          if( observationTypes.exists( _.obs1 == word ) ) {
             ObservedStatePair( word, prosody )
-          else
+          } else {
+            unknownTokens += 1
             ObservedStatePair( "UNK", prosody )
+          }
         }
       )
     }.filter{ s => s.size > 2 }//&& s.size < 25 }
 
+
     println( "random seed: " + randSeed )
     println( corpus.size + " training sentences" )
     println( testCorpus.size + " dev sentences" )
+    println( unknownTokens + " unknown tokens in dev set" )
 
 
 
@@ -136,14 +141,9 @@ object CoupledChunker {
         transitionMatrixA.zeroAll( transitionsToZero )
         initialStateProbabilities.zeroAll( initialStatesToZero )
 
-        println( parameters )
-
-        println( "---" )
         emissionMatrixA =
-          new SmoothedConditionalLogProbabilityDistribution( 0.5, hiddATypes.toSet, obsATypes )
+          new SmoothedConditionalLogProbabilityDistribution( 0.1, hiddATypes.toSet, obsATypes )
         emissionMatrixA.randomize( randSeed, 10 )
-
-        println( parameters )
 
         val frequency = 4
         val testSet = testCorpus

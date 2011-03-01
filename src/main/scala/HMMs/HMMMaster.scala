@@ -170,15 +170,15 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
   override def iterationEnd {
     iterationCount += 1
 
+    setParams( summingPartialCounts.toParameters )
+    normalize
+
     if( iterationCount % frequency == 0 ) {
-      viterbiHMM ! summingPartialCounts.toParameters
+      viterbiHMM ! packageParameters
       viterbiHMM ! Viterbi( iterationCount, testSet )
     }
 
     val corpusLogProb = summingPartialCounts.logProb
-
-    setParams( summingPartialCounts.toParameters )
-    normalize
 
     val deltaLogProb = (corpusLogProb - lastCorpusLogProb)/lastCorpusLogProb
     println( "iteration " + iterationCount + ": " + corpusLogProb+ " (" + deltaLogProb +")" )

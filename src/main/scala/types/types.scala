@@ -229,12 +229,13 @@ class ConditionalLogProbabilityDistribution[T<:Label,U<:Label]( parents:Set[T], 
     )
 }
 
-class SmoothedConditionalLogProbabilityDistribution[T<:Label,U<:Label](lambda:Double, parents:Set[T], children:Set[U] )
+class LambdaSmoothedConditionalLogProbabilityDistribution[T<:Label,U<:Label](lambda:Double, parents:Set[T], children:Set[U] )
   extends ConditionalLogProbabilityDistribution[T,U](parents,children) {
   override def normalize {
     val maxes = HashMap(
       cpt.keySet.map( parent =>
-        parent -> ( cpt(parent).values.reduceLeft( (a,b) => Maths.sumLogProb(Array(a,b,lambda )) ) )
+        parent -> ( cpt(parent).values.reduceLeft( (a,b) =>
+        Maths.sumLogProb(Array( a, b, children.size * lambda )) ) )
       ).toSeq:_*
     )
 
@@ -245,6 +246,33 @@ class SmoothedConditionalLogProbabilityDistribution[T<:Label,U<:Label](lambda:Do
             child -> (
               Maths.sumLogProb( cpt(parent)(child), lambda ) -
               maxes(parent)
+            )
+          }.toSeq:_*
+        )
+      }.toSeq:_*
+    )
+  }
+}
+
+class UnkSmoothedConditionalLogProbabilityDistribution[T<:Label,U<:Label](lambda:Double, parents:Set[T], children:Set[U] )
+  extends ConditionalLogProbabilityDistribution[T,U](parents,children) {
+  override def normalize {
+    val maxes = HashMap(
+      cpt.keySet.map( parent =>
+        parent -> ( cpt(parent).values.reduceLeft( (a,b) =>
+        Maths.sumLogProb(Array( a, b, lambda )) ) )
+      ).toSeq:_*
+    )
+
+    cpt = HashMap(
+      cpt.keySet.map{ parent =>
+        parent -> HashMap(
+          cpt(parent).keySet.map{ child =>
+            child -> (
+              if( child.toString == "UNK" )
+                Maths.sumLogProb( cpt(parent)(child), lambda ) - maxes(parent)
+              else
+                cpt(parent)(child) - maxes(parent)
             )
           }.toSeq:_*
         )

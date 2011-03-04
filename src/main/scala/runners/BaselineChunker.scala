@@ -7,18 +7,34 @@ import ProsodicParsing.HMMs.EvaluatingMaster
 import ProsodicParsing.types._
 import akka.actor.Actor.actorOf
 import akka.actor.ActorRef
+import collection.mutable.HashMap
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
 
 
 object BaselineChunker {
   def main( args:Array[String]) {
     import scala.math.log
 
-    val dataPath = args(0)
-    val testDataPath = args(1)
-    val convergenceTolerance = args(2).toDouble
-    val numHMMs = args(3).toInt
-    val whichStream = args(4).toInt
-    val randSeed = if(args.length > 5 ) args(5).toInt else 15
+    val optsParser = new OptionParser("t:e:c:s:n:r:l")
+
+    val opts = optsParser.parse( args:_* )
+
+    val dataPath = opts.valueOf( "t" ).toString
+    val testDataPath = opts.valueOf( "e" ).toString
+    val convergenceTolerance = opts.valueOf( "c" ).toString.toDouble
+    val numHMMs = opts.valueOf("n").toString.toInt
+    val whichStream = opts.valueOf( "s" ).toString.toInt
+    val randSeed = if( opts.has( "r" ) ) opts.valueOf( "r" ).toString.toInt else 15
+    val lambdaSmoothedEmissions = opts.has( "l" )
+
+    println( "dataPath: " + dataPath )
+    println( "testDataPath: " +testDataPath )
+    println( "convergenceTolerance: " + convergenceTolerance )
+    println( "numHMMs: " + numHMMs )
+    println( "whichStream: " + whichStream )
+    println( "randSeed: " + randSeed )
+    println( "lambdaSmoothedEmissions: " + lambdaSmoothedEmissions )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
     val obieCoding = Array( "B", "E", "I", "O" )
@@ -77,14 +93,36 @@ object BaselineChunker {
     chunkingTransitions.normalize
 
 
-    val corpus = io.Source.fromFile( dataPath ).getLines().toList.map{ rawString =>
+    val findRareWords = new HashMap[String,Int]{
+      override def default( s:String ) = 0
+    }
+    var corpus = io.Source.fromFile( dataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
         tokenized.tail.map{ w =>
-          ObservedState( w.split( "#" )(whichStream) )
+          val toUse = w.split( "#" )(whichStream)
+          findRareWords( toUse ) += 1
+          ObservedState( toUse )
         }
     }.filter{ s => s.size > 2 }//&& s.size < 20 }
 
-    val observationTypes = Set( corpus.flatten).flatten.toSet + ObservedState( "UNK" )
+    var unkTokens = 0
+    corpus = corpus.map( s =>
+      s.map{ case ObservedState( w )=>
+        if( findRareWords( w ) == 1 ) {
+          unkTokens += 1
+          ObservedState( "UNK" )
+        } else {
+          ObservedState( w )
+        }
+      }
+    )
+
+
+
+    val observationTypes = Set( corpus.flatten).flatten.toSet.filter( _ match {
+        case ObservedState(w) => findRareWords(w) > 1
+      }
+    ) + ObservedState( "UNK" )
 
     var unknownTokens = 0
     val testCorpus = io.Source.fromFile( testDataPath ).getLines().toList.map{ rawString =>
@@ -93,7 +131,7 @@ object BaselineChunker {
         tokenized.head,
         tokenized.tail.map{ w =>
           val relevantToken = w.split( "#" )(whichStream)
-          if( observationTypes.exists( _.s == relevantToken ) ) {
+          if( observationTypes.contains( ObservedState( relevantToken ) ) ) {
              ObservedState( relevantToken )
           } else {
             unknownTokens += 1
@@ -106,7 +144,8 @@ object BaselineChunker {
     println( "random seed: " + randSeed )
     println( corpus.size + " training sentences" )
     println( testCorpus.size + " dev sentences" )
-    println( unknownTokens + " unknown tokens in dev set" )
+    println( unkTokens + " unk tokens in training set" )
+    println( unknownTokens + " unk tokens in dev set" )
 
 
     //println( hiddenStates.size + " hidden states: " + hiddenStates.mkString("",", ",".") )
@@ -133,15 +172,18 @@ object BaselineChunker {
         transitionMatrix.zeroAll( transitionsToZero )
         initialStateProbabilities.zeroAll( initialStatesToZero )
 
-        emissionMatrix =
-          new SmoothedConditionalLogProbabilityDistribution( 0.1, chunkingStates,
-          observationTypes.toSet )
+        if( lambdaSmoothedEmissions ) {
+          emissionMatrix =
+            new LambdaSmoothedConditionalLogProbabilityDistribution( 0.0001, chunkingStates,
+            observationTypes.toSet )
+          emissionMatrix.randomize( randSeed, 10 )
+        }
 
         val frequency = 4
         val testSet = testCorpus
 
         def converged( iterations:Int, deltaLogProb:Double ) =
-          ( math.abs( deltaLogProb ) < convergenceTolerance && iterations > 30 )
+          ( math.abs( deltaLogProb ) < convergenceTolerance )
       }
     )
 

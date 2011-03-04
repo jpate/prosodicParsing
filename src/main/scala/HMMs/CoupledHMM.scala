@@ -725,10 +725,6 @@ class CoupledHMM(
               thisTransitionCountA
           )
 
-          if( obsA == "UNK" && thisTransitionCountA != Double.NegativeInfinity ) {
-            println( "Woops giving " + thisTransitionCountA + " counts to UNK" )
-          }
-
           emissionCountsA(qFromA)( ObservedState(obsA) ) = Maths.sumLogProb(
               emissionCountsA(qFromA)( ObservedState(obsA) ),
               thisTransitionCountA

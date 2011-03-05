@@ -16,7 +16,7 @@ object BaselineChunker {
   def main( args:Array[String]) {
     import scala.math.log
 
-    val optsParser = new OptionParser("t:e:c:s:n:r:l")
+    val optsParser = new OptionParser("t:e:c:s:n:r:lu")
 
     val opts = optsParser.parse( args:_* )
 
@@ -27,6 +27,7 @@ object BaselineChunker {
     val whichStream = opts.valueOf( "s" ).toString.toInt
     val randSeed = if( opts.has( "r" ) ) opts.valueOf( "r" ).toString.toInt else 15
     val lambdaSmoothedEmissions = opts.has( "l" )
+    val unkSmoothedEmissions = opts.has( "u" ) 
 
     println( "dataPath: " + dataPath )
     println( "testDataPath: " +testDataPath )
@@ -35,6 +36,7 @@ object BaselineChunker {
     println( "whichStream: " + whichStream )
     println( "randSeed: " + randSeed )
     println( "lambdaSmoothedEmissions: " + lambdaSmoothedEmissions )
+    println( "unkSmoothedEmissions: " + unkSmoothedEmissions )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
     val obieCoding = Array( "B", "E", "I", "O" )
@@ -147,6 +149,7 @@ object BaselineChunker {
     println( unkTokens + " unk tokens in training set" )
     println( unknownTokens + " unk tokens in dev set" )
 
+    //println( "\n\ntestCorpus is: " + testCorpus )
 
     //println( hiddenStates.size + " hidden states: " + hiddenStates.mkString("",", ",".") )
 
@@ -175,6 +178,11 @@ object BaselineChunker {
         if( lambdaSmoothedEmissions ) {
           emissionMatrix =
             new LambdaSmoothedConditionalLogProbabilityDistribution( 0.0001, chunkingStates,
+            observationTypes.toSet )
+          emissionMatrix.randomize( randSeed, 10 )
+        } else if( unkSmoothedEmissions ) {
+          emissionMatrix =
+            new UnkSmoothedConditionalLogProbabilityDistribution( 0.0001, chunkingStates,
             observationTypes.toSet )
           emissionMatrix.randomize( randSeed, 10 )
         }

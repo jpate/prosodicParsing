@@ -16,7 +16,7 @@ object CoupledChunker {
   def main( args:Array[String]) {
     import scala.math.log
 
-    val optsParser = new OptionParser("t:e:c:p:n:r:l")
+    val optsParser = new OptionParser("t:e:c:p:n:r:lu")
 
     val opts = optsParser.parse( args:_* )
 
@@ -27,6 +27,7 @@ object CoupledChunker {
     val numHMMs = opts.valueOf( "n" ).toString.toInt
     val randSeed = if( opts.has( "r" ) ) opts.valueOf( "r" ).toString.toInt else 15
     val lambdaSmoothedEmissions = opts.has( "l" )
+    val unkSmoothedEmissions = opts.has( "u" ) 
     //val randSeed = if(args.length > 5 ) args(5).toInt else 15
 
     println( "dataPath: " + dataPath )
@@ -36,6 +37,7 @@ object CoupledChunker {
     println( "numHMMs: " + numHMMs )
     println( "randSeed: " + randSeed )
     println( "lambdaSmoothedEmissions: " + lambdaSmoothedEmissions )
+    println( "unkSmoothedEmissions: " + unkSmoothedEmissions )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
     val obieCoding = Array( "B", "E", "I", "O" )
@@ -127,6 +129,8 @@ object CoupledChunker {
       case ObservedStatePair( _,p ) => p
     }.map{ p => ObservedStatePair( "UNK", p ) }
 
+    //println( "\n\nobservationTypes: " + observationTypes.mkString("",", ","\n\n" ) );
+
     var unknownTokens = 0
     val testCorpus = io.Source.fromFile( testDataPath ).getLines().toList.map{ rawString =>
       val tokenized = rawString.split(" ").toList
@@ -134,7 +138,7 @@ object CoupledChunker {
         tokenized.head,
         tokenized.tail.map{ w =>
           val Array( word, prosody ) = w.split( "#" )
-          if( observationTypes.exists{ _.obs1 == w } ) {
+          if( observationTypes.exists{ _.obs1 == word } ) {
             ObservedStatePair( word, prosody )
           } else {
             unknownTokens += 1
@@ -151,6 +155,8 @@ object CoupledChunker {
     println( unkTokens + " unk tokens in training set" )
     println( unknownTokens + " unkn tokens in dev set" )
 
+
+    //println( "\n\ntestCorpus is: " + testCorpus )
 
 
     //println( hiddenStates.size + " hidden states: " + hiddenStates.mkString("",", ",".") )
@@ -181,6 +187,10 @@ object CoupledChunker {
         if( lambdaSmoothedEmissions ) {
           emissionMatrixA =
             new LambdaSmoothedConditionalLogProbabilityDistribution( 0.0001, hiddATypes.toSet, obsATypes )
+          emissionMatrixA.randomize( randSeed, 10 )
+        } else if( unkSmoothedEmissions ) {
+          emissionMatrixA =
+            new UnkSmoothedConditionalLogProbabilityDistribution( 0.0001, hiddATypes.toSet, obsATypes )
           emissionMatrixA.randomize( randSeed, 10 )
         }
 

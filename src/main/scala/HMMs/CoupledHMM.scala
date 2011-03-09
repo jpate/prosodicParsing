@@ -81,7 +81,7 @@ class CoupledHMM(
   var emissionMatrixA =
     new ConditionalLogProbabilityDistribution( hiddATypes.toSet, obsATypes )
 
-  val emissionMatrixB =
+  var emissionMatrixB =
     new ConditionalLogProbabilityDistribution( hiddBTypes.toSet, obsBTypes )
 
   val initialStateProbabilities =

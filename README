@@ -28,13 +28,13 @@ CoupledHMM has two hidden streams and two output streams:
   ^          ^         ^
   |          |         |
   |          |         |
- p_1  -->_  p_2 --> _ p_3 ...
+ p_1  -->_  p_2  -->_ p_3 ...
      \   /|     \   /|
       \ /        \ /
        X          X
       / \        / \
      /  _\|     /  _\|
- q_1  -->   q_2  ->   q_3 ...
+ q_1  -->   q_2  -->  q_3 ...
   |          |         |
   |          |         |
   v          v         v
@@ -42,7 +42,8 @@ CoupledHMM has two hidden streams and two output streams:
 
 
 
-This uses a modified version of mallet (included in the lib directory) which can be obtained from:
+This uses a modified version of mallet (included in the lib directory) whose source can be obtained
+from:
 
 https://bitbucket.org/jpate/mallet
 

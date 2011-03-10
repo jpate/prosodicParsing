@@ -490,4 +490,14 @@ class TwoOutputHMM(
     totalCorpusLogProb
   }
 
+  override def toString =
+    "  == HMM Parameters == \n" +
+    "\nInitialProbabilities" +
+    initialStateProbabilities +
+    "\nTransitions:" +
+    transitionMatrix +
+    "\nEmissionsA" +
+    emissionMatrixA
+    "\nEmissionsB" +
+    emissionMatrixB
 }

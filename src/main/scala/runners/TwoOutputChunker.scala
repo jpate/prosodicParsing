@@ -39,38 +39,38 @@ object TwoOutputChunker {
     println( "smoothBoth: " + smoothBoth )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
-    val obieCoding = Array( "B", "E", "I", "O" )
+    val obieCoding = Array( "C_B", "C_E", "C_I", "C_O" )
 
 
     val chunkingStates = obieCoding.map{ HiddenState( _ ) }.toSet
 
     val transitionsToZero = chunkingStates.flatMap{ fromTransition =>
       fromTransition match {
-        case HiddenState( "O" ) =>
+        case HiddenState( "C_O" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "I" ) ),
-            Tuple2( fromTransition, HiddenState( "E" ) )
+            Tuple2( fromTransition, HiddenState( "C_I" ) ),
+            Tuple2( fromTransition, HiddenState( "C_E" ) )
           )
-        case HiddenState( "B" ) =>
+        case HiddenState( "C_B" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "O" ) ),
-            Tuple2( fromTransition, HiddenState( "B" ) )
+            Tuple2( fromTransition, HiddenState( "C_O" ) ),
+            Tuple2( fromTransition, HiddenState( "C_B" ) )
           )
-        case HiddenState( "I" ) =>
+        case HiddenState( "C_I" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "O" ) ),
-            Tuple2( fromTransition, HiddenState( "B" ) )
+            Tuple2( fromTransition, HiddenState( "C_O" ) ),
+            Tuple2( fromTransition, HiddenState( "C_B" ) )
           )
-        case HiddenState( "E" ) =>
+        case HiddenState( "C_E" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "I" ) ),
-            Tuple2( fromTransition, HiddenState( "E" ) )
+            Tuple2( fromTransition, HiddenState( "C_I" ) ),
+            Tuple2( fromTransition, HiddenState( "C_E" ) )
           )
       }
     }.toSet
 
     val initialStatesToZero =
-      Set( "E", "I" ).map( HiddenState( _ ) )
+      Set( "C_E", "C_I" ).map( HiddenState( _ ) )
 
 
     val chunkingTransitions =

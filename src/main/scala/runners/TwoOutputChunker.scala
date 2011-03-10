@@ -1,5 +1,5 @@
 package ProsodicParsing.runners
-import ProsodicParsing.HMMs.CoupledHMM
+import ProsodicParsing.HMMs.TwoOutputHMM
 import ProsodicParsing.HMMs.HMMMaster
 import ProsodicParsing.HMMs.HMMActor
 import ProsodicParsing.HMMs.EvaluatingMaster
@@ -11,136 +11,70 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
 
-object CoupledChunker {
+object TwoOutputChunker {
   def main( args:Array[String]) {
     import scala.math.log
 
-    val optsParser = new OptionParser("t:e:c:p:n:r:lubd")
+    val optsParser = new OptionParser("t:e:c:n:r:lub")
 
     val opts = optsParser.parse( args:_* )
 
     val dataPath = opts.valueOf( "t" ).toString
     val testDataPath = opts.valueOf( "e" ).toString
     val convergenceTolerance = opts.valueOf( "c" ).toString.toDouble
-    val numProsodicStates = opts.valueOf( "p").toString.toInt
     val numHMMs = opts.valueOf( "n" ).toString.toInt
     val randSeed = if( opts.has( "r" ) ) opts.valueOf( "r" ).toString.toInt else 15
     val lambdaSmoothedEmissions = opts.has( "l" )
     val unkSmoothedEmissions = opts.has( "u" )
     val smoothBoth = opts.has( "b" )
-    val chunkBoth = opts.has( "d" )
     //val randSeed = if(args.length > 5 ) args(5).toInt else 15
 
     println( "dataPath: " + dataPath )
     println( "testDataPath: " +testDataPath )
     println( "convergenceTolerance: " + convergenceTolerance )
-    println( "numProsodicStates: " + numProsodicStates )
     println( "numHMMs: " + numHMMs )
     println( "randSeed: " + randSeed )
     println( "lambdaSmoothedEmissions: " + lambdaSmoothedEmissions )
     println( "unkSmoothedEmissions: " + unkSmoothedEmissions )
     println( "smoothBoth: " + smoothBoth )
-    println( "chunkBoth: " + chunkBoth )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
     val obieCoding = Array( "B", "E", "I", "O" )
 
-    val hiddenStates =
-      if( chunkBoth )
-        obieCoding.flatMap{ obieCode =>
-          obieCoding.map{ y =>
-            HiddenStatePair( "C_"+obieCode, "P_"+y )
-          }
-        }.toSet
-      else
-        obieCoding.flatMap{ obieCode =>
-          (0 to (numProsodicStates-1)).map{ y =>
-            HiddenStatePair( "C_"+obieCode, "P_"+y )
-          }
-        }.toSet
-
 
     val chunkingStates = obieCoding.map{ HiddenState( _ ) }.toSet
 
-    val transitionsToZero = hiddenStates.flatMap{ fromTransition =>
+    val transitionsToZero = chunkingStates.flatMap{ fromTransition =>
       fromTransition match {
-        case HiddenStatePair( "C_O", _ ) =>
+        case HiddenState( "O" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "C_I" ) ),
-            Tuple2( fromTransition, HiddenState( "C_E" ) )
+            Tuple2( fromTransition, HiddenState( "I" ) ),
+            Tuple2( fromTransition, HiddenState( "E" ) )
           )
-        case HiddenStatePair( "C_B", _ ) =>
+        case HiddenState( "B" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "C_O" ) ),
-            Tuple2( fromTransition, HiddenState( "C_B" ) )
+            Tuple2( fromTransition, HiddenState( "O" ) ),
+            Tuple2( fromTransition, HiddenState( "B" ) )
           )
-        case HiddenStatePair( "C_I", _ ) =>
+        case HiddenState( "I" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "C_O" ) ),
-            Tuple2( fromTransition, HiddenState( "C_B" ) )
+            Tuple2( fromTransition, HiddenState( "O" ) ),
+            Tuple2( fromTransition, HiddenState( "B" ) )
           )
-        case HiddenStatePair( "C_E", _ ) =>
+        case HiddenState( "E" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "C_I" ) ),
-            Tuple2( fromTransition, HiddenState( "C_E" ) )
+            Tuple2( fromTransition, HiddenState( "I" ) ),
+            Tuple2( fromTransition, HiddenState( "E" ) )
           )
       }
     }.toSet
 
-    val prosodicTransitionsToZero =
-      if( chunkBoth )
-        hiddenStates.flatMap{ fromTransition =>
-          fromTransition match {
-            case HiddenStatePair( _, "P_O" ) =>
-              List(
-                Tuple2( fromTransition, HiddenState( "P_I" ) ),
-                Tuple2( fromTransition, HiddenState( "P_E" ) )
-              )
-            case HiddenStatePair( _, "P_B" ) =>
-              List(
-                Tuple2( fromTransition, HiddenState( "P_O" ) ),
-                Tuple2( fromTransition, HiddenState( "P_B" ) )
-              )
-            case HiddenStatePair( _, "P_I" ) =>
-              List(
-                Tuple2( fromTransition, HiddenState( "P_O" ) ),
-                Tuple2( fromTransition, HiddenState( "P_B" ) )
-              )
-            case HiddenStatePair( _, "P_E" ) =>
-              List(
-                Tuple2( fromTransition, HiddenState( "P_I" ) ),
-                Tuple2( fromTransition, HiddenState( "P_E" ) )
-              )
-          }
-        }.toSet
-      else
-        Set[Tuple2[HiddenStatePair,HiddenState]]()
-
-
-    // val initialStatesToZero = hiddenStates.filter{ hiddenState =>
-    //   if( chunkBoth )
-    //     hiddenState match {
-    //       case HiddenStatePair( "C_I", _ ) => true
-    //       case HiddenStatePair( "C_E", _ ) => true
-    //       case HiddenStatePair( _, "P_I" ) => true
-    //       case HiddenStatePair( _, "P_E" ) => true
-    //       case _ => false
-    //     }
-    //   else
-    //     hiddenState match {
-    //       case HiddenStatePair( "C_I", _ ) => true
-    //       case HiddenStatePair( "C_E", _ ) => true
-    //       case _ => false
-    //     }
-    // }
     val initialStatesToZero =
-      Set( "C_E", "C_I" ).map( HiddenState( _ ) )
-    val prosodicInitialStatesToZero =
-      Set( "P_E", "P_I" ).map( HiddenState( _ ) )
+      Set( "E", "I" ).map( HiddenState( _ ) )
 
 
     val chunkingTransitions =
-      new ConditionalLogProbabilityDistribution( hiddenStates, chunkingStates )
+      new ConditionalLogProbabilityDistribution( chunkingStates, chunkingStates )
 
     chunkingTransitions.randomize( randSeed, 10 )
 
@@ -224,46 +158,41 @@ object CoupledChunker {
     // observationTypes.mkString("\t","\n\t","\n" ) )
 
     val manager = actorOf(
-        new CoupledHMM(hiddenStates,observationTypes,"Master")
-        with HMMMaster[HiddenStatePair,ObservedStatePair]
-        with EvaluatingMaster[HiddenStatePair,ObservedStatePair] {
+        new TwoOutputHMM(chunkingStates,observationTypes,"Master")
+        with HMMMaster[HiddenState,ObservedStatePair]
+        with EvaluatingMaster[HiddenState,ObservedStatePair] {
         val trainingData = corpus
 
         println( "creating " + numHMMs + " HMMs")
         var hmms = (0 to (numHMMs-1)).map{ n =>
-          actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet, n.toString )
-            with HMMActor[HiddenStatePair,ObservedStatePair]).start
+          actorOf( new TwoOutputHMM( chunkingStates, observationTypes.toSet, n.toString )
+            with HMMActor[HiddenState,ObservedStatePair]).start
         }.toList
         println( "Made " + hmms.size + " HMMs")
 
-        val viterbiHMM = actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet, "viterbi" ) with
-        HMMActor[HiddenStatePair,ObservedStatePair] )
+        val viterbiHMM = actorOf( new TwoOutputHMM( chunkingStates, observationTypes.toSet, "viterbi" ) with
+        HMMActor[HiddenState,ObservedStatePair] )
 
         randomize( randSeed, 10 )
-        transitionMatrixA.zeroAll( transitionsToZero )
-        initialStateProbabilitiesA.zeroAll( initialStatesToZero )
-
-        if( chunkBoth ) {
-          initialStateProbabilitiesB.zeroAll( prosodicInitialStatesToZero )
-          transitionMatrixB.zeroAll( prosodicTransitionsToZero )
-        }
+        transitionMatrix.zeroAll( transitionsToZero )
+        initialStateProbabilities.zeroAll( initialStatesToZero )
 
         if( lambdaSmoothedEmissions ) {
           emissionMatrixA =
-            new LambdaSmoothedConditionalLogProbabilityDistribution( 0.0001, hiddATypes.toSet, obsATypes )
+            new LambdaSmoothedConditionalLogProbabilityDistribution( 0.0001, chunkingStates.toSet, obsATypes )
           emissionMatrixA.randomize( randSeed, 10 )
           if( smoothBoth ) {
             emissionMatrixB =
-              new LambdaSmoothedConditionalLogProbabilityDistribution( 0.0001, hiddBTypes.toSet, obsBTypes )
+              new LambdaSmoothedConditionalLogProbabilityDistribution( 0.0001, chunkingStates.toSet, obsBTypes )
             emissionMatrixB.randomize( randSeed, 10 )
           }
         } else if( unkSmoothedEmissions ) {
           emissionMatrixA =
-            new UnkSmoothedConditionalLogProbabilityDistribution( 0.0001, hiddATypes.toSet, obsATypes )
+            new UnkSmoothedConditionalLogProbabilityDistribution( 0.0001, chunkingStates.toSet, obsATypes )
           emissionMatrixA.randomize( randSeed, 10 )
           if( smoothBoth ) {
             emissionMatrixB =
-              new UnkSmoothedConditionalLogProbabilityDistribution( 0.0001, hiddBTypes.toSet, obsBTypes )
+              new UnkSmoothedConditionalLogProbabilityDistribution( 0.0001, chunkingStates.toSet, obsBTypes )
             emissionMatrixB.randomize( randSeed, 10 )
           }
         }

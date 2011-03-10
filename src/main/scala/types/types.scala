@@ -478,6 +478,79 @@ abstract class PartialCounts {
   val logProb:Double
 }
 
+case class TwoOutputHMMPartialCounts(
+  stringLogProb: Double,
+  initialStateCounts: HashMap[HiddenState,Double],
+  transitionCounts: HashMap[HiddenState,HashMap[HiddenState,Double]],
+  emissionCountsA: HashMap[HiddenState,HashMap[ObservedState,Double]],
+  emissionCountsB: HashMap[HiddenState,HashMap[ObservedState,Double]]
+) extends PartialCounts {
+  val logProb = stringLogProb
+  def +( otherPC: PartialCounts ) = {
+    val TwoOutputHMMPartialCounts(
+      otherStringLogProb,
+      otherInitialStateCounts,
+      otherTransitionCounts,
+      otherEmissionCountsA,
+      otherEmissionCountsB
+    ) = otherPC
+
+    TwoOutputHMMPartialCounts(
+      stringLogProb + otherStringLogProb,
+      HashMap(
+        initialStateCounts.keySet.map{ q =>
+          q -> Maths.sumLogProb(
+            initialStateCounts(q), otherInitialStateCounts(q)
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        transitionCounts.keySet.map{ qFrom =>
+          qFrom -> HashMap(
+            transitionCounts(qFrom).keySet.map{ qTo =>
+              qTo -> Maths.sumLogProb(
+                  transitionCounts(qFrom)(qTo),
+                  otherTransitionCounts(qFrom)(qTo)
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        emissionCountsA.keySet.map{ q =>
+          q -> HashMap(
+            emissionCountsA(q).keySet.map{ obs =>
+              obs -> Maths.sumLogProb(
+                emissionCountsA(q)(obs),
+                otherEmissionCountsA(q)(obs)
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        emissionCountsB.keySet.map{ q =>
+          q -> HashMap(
+            emissionCountsB(q).keySet.map{ obs =>
+              obs -> Maths.sumLogProb(
+                emissionCountsB(q)(obs),
+                otherEmissionCountsB(q)(obs)
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      )
+    )
+  }
+
+  def toParameters = TwoOutputHMMParameters(
+    initialStateCounts,
+    transitionCounts,
+    emissionCountsA,
+    emissionCountsB
+  )
+}
+
 case class PlainHMMPartialCounts(
   stringLogProb: Double,
   initialStateCounts: HashMap[HiddenState,Double],
@@ -538,7 +611,8 @@ case class PlainHMMPartialCounts(
 
 case class CoupledHMMPartialCounts(
   stringLogProb: Double,
-  initialStateCounts: HashMap[HiddenStatePair,Double],
+  initialStateCountsA: HashMap[HiddenState,Double],
+  initialStateCountsB: HashMap[HiddenState,Double],
   transitionCountsA: HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
   transitionCountsB: HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
   emissionCountsA: HashMap[HiddenState,HashMap[ObservedState,Double]],
@@ -548,7 +622,8 @@ case class CoupledHMMPartialCounts(
   def +( otherPC: PartialCounts ) = {
     val CoupledHMMPartialCounts(
       otherStringLogProb,
-      otherInitialStateCounts,
+      otherInitialStateCountsA,
+      otherInitialStateCountsB,
       otherTransitionCountsA,
       otherTransitionCountsB,
       otherEmissionCountsA,
@@ -558,9 +633,16 @@ case class CoupledHMMPartialCounts(
     CoupledHMMPartialCounts(
       stringLogProb + otherStringLogProb,
       HashMap(
-        initialStateCounts.keySet.map{ q =>
+        initialStateCountsA.keySet.map{ q =>
           q -> Maths.sumLogProb(
-            initialStateCounts(q), otherInitialStateCounts(q) //- otherStringLogProb
+            initialStateCountsA(q), otherInitialStateCountsA(q)
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        initialStateCountsB.keySet.map{ q =>
+          q -> Maths.sumLogProb(
+            initialStateCountsB(q), otherInitialStateCountsB(q)
           )
         }.toSeq:_*
       ),
@@ -616,7 +698,8 @@ case class CoupledHMMPartialCounts(
   }
 
   def toParameters = CoupledHMMParameters(
-    initialStateCounts,
+    initialStateCountsA,
+    initialStateCountsB,
     transitionCountsA,
     transitionCountsB,
     emissionCountsA,
@@ -627,8 +710,16 @@ case class CoupledHMMPartialCounts(
 
 abstract class Parameters
 
+case class TwoOutputHMMParameters(
+initialProbs:HashMap[HiddenState,Double],
+transitions:HashMap[HiddenState,HashMap[HiddenState,Double]],
+emissionsA:HashMap[HiddenState,HashMap[ObservedState,Double]],
+emissionsB:HashMap[HiddenState,HashMap[ObservedState,Double]]
+) extends Parameters
+
 case class CoupledHMMParameters(
-initialProbs:HashMap[HiddenStatePair,Double],
+initialProbsA:HashMap[HiddenState,Double],
+initialProbsB:HashMap[HiddenState,Double],
 transitionsA:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
 transitionsB:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
 emissionsA:HashMap[HiddenState,HashMap[ObservedState,Double]],

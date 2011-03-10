@@ -1,6 +1,5 @@
 package ProsodicParsing.runners
 import ProsodicParsing.HMMs.PlainHMM
-import ProsodicParsing.HMMs.CoupledHMM
 import ProsodicParsing.HMMs.HMMMaster
 import ProsodicParsing.HMMs.HMMActor
 import ProsodicParsing.HMMs.EvaluatingMaster

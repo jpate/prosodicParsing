@@ -35,9 +35,18 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
 
   var hmm = new DynamicBayesNet(0)
 
-  def buildSlicedHMM( tokens:List[ObservedType] ):Unit
-
   def buildHMM( tokens:List[ObservedType] ):Unit
+
+  //def buildSlicedHMM( tokens:List[ObservedType] ):Unit
+
+
+  def buildSlicedHMM( tokens:List[ObservedType] ) {
+    buildHMM( tokens )
+    hmm = Models.addEvidence(
+      hmm,
+      generateObservationSequence( tokens )
+    )
+  }
 
 
   var observations:Array[Variable] = Array()

@@ -84,11 +84,18 @@ class CoupledHMM(
   var emissionMatrixB =
     new ConditionalLogProbabilityDistribution( hiddBTypes.toSet, obsBTypes )
 
-  val initialStateProbabilities =
-    new LogProbabilityDistribution[HiddenStatePair]( hiddenStateTypesSet )
+  val initialStateProbabilitiesA =
+    new LogProbabilityDistribution[HiddenState]( hiddATypes.toSet )
+
+  val initialStateProbabilitiesB =
+    new LogProbabilityDistribution[HiddenState]( hiddBTypes.toSet )
+
+  // val initialStateProbabilities =
+  //   new LogProbabilityDistribution[HiddenStatePair]( hiddenStateTypesSet )
 
   def parameters = List(
-    initialStateProbabilities,
+    initialStateProbabilitiesA,
+    initialStateProbabilitiesB,
     transitionMatrixA,
     transitionMatrixB,
     emissionMatrixA,
@@ -96,7 +103,9 @@ class CoupledHMM(
   )
 
   def packageParameters = CoupledHMMParameters(
-    initialStateProbabilities.pt,
+    //initialStateProbabilities.pt,
+    initialStateProbabilitiesA.pt,
+    initialStateProbabilitiesB.pt,
     transitionMatrixA.cpt,
     transitionMatrixB.cpt,
     emissionMatrixA.cpt,
@@ -107,7 +116,12 @@ class CoupledHMM(
   def initialPartialCounts = CoupledHMMPartialCounts(
       0D,
       HashMap(
-        hiddenStateTypes.map( thisStateName =>
+        hiddATypes.map( thisStateName =>
+          thisStateName -> Double.NegativeInfinity
+        ).toSeq: _*
+      ),
+      HashMap(
+        hiddBTypes.map( thisStateName =>
           thisStateName -> Double.NegativeInfinity
         ).toSeq: _*
       ),
@@ -160,14 +174,16 @@ class CoupledHMM(
 
   def setParams( newParams:Parameters ) {
     val CoupledHMMParameters(
-      initialProbs,
+      initialProbsA,
+      initialProbsB,
       transitionsA,
       transitionsB,
       emissionsA,
       emissionsB
     ) = newParams
 
-    initialStateProbabilities.setPT( initialProbs )
+    initialStateProbabilitiesA.setPT( initialProbsA )
+    initialStateProbabilitiesB.setPT( initialProbsB )
     transitionMatrixA.setCPT( transitionsA )
     transitionMatrixB.setCPT( transitionsB )
     emissionMatrixA.setCPT( emissionsA )
@@ -225,8 +241,16 @@ class CoupledHMM(
     )
     hmm.addInitialStateProbabilities(
       LogTableFactor.makeFromLogValues(
-        Array( hiddenVarA(0) , hiddenVarB(0) ),
-        initialStateProbabilities.toLogArray
+        Array( hiddenVarA(0) ),
+        //Array( hiddenVarA(0) , hiddenVarB(0) ),
+        initialStateProbabilitiesA.toLogArray
+      )
+    )
+    hmm.addInitialStateProbabilities(
+      LogTableFactor.makeFromLogValues(
+        Array( hiddenVarB(0) ),
+        //Array( hiddenVarA(0) , hiddenVarB(0) ),
+        initialStateProbabilitiesB.toLogArray
       )
     )
 
@@ -280,6 +304,7 @@ class CoupledHMM(
   }
 
 
+  /*
   def buildSlicedHMM( tokens: List[ObservedStatePair] ) {
     localUniverse = new Universe()
     hmm = new DynamicBayesNet(tokens.size)
@@ -328,8 +353,16 @@ class CoupledHMM(
     )
     hmm.addInitialStateProbabilities(
       LogTableFactor.makeFromLogValues(
-        Array( hiddenVarA(0) , hiddenVarB(0) ),
-        initialStateProbabilities.toLogArray
+        //Array( hiddenVarA(0) , hiddenVarB(0) ),
+        Array( hiddenVarA(0) ),
+        initialStateProbabilitiesA.toLogArray
+      )
+    )
+    hmm.addInitialStateProbabilities(
+      LogTableFactor.makeFromLogValues(
+        //Array( hiddenVarA(0) , hiddenVarB(0) ),
+        Array( hiddenVarB(0) ),
+        initialStateProbabilitiesB.toLogArray
       )
     )
 
@@ -395,15 +428,24 @@ class CoupledHMM(
         i
       )
     }
-
-
   }
+  */
 
   def reestimate( corpus: List[List[ObservedStatePair]] ) = {
     import math.exp
 
+    /*
     val corpusInitialStateCounts  = new HashMap[HiddenStatePair,Double] {
       override def default( qs:HiddenStatePair ) = Double.NegativeInfinity
+    }
+    */
+
+    val corpusInitialStateCountsA  = new HashMap[HiddenState,Double] {
+      override def default( q:HiddenState ) = Double.NegativeInfinity
+    }
+
+    val corpusInitialStateCountsB  = new HashMap[HiddenState,Double] {
+      override def default( q:HiddenState ) = Double.NegativeInfinity
     }
 
     val corpustransitionCountsA = new HashMap[HiddenStatePair,HashMap[HiddenState,Double]] {
@@ -436,7 +478,7 @@ class CoupledHMM(
       }
     }
 
-    val corpusemissionCountsA = new HashMap[HiddenState,HashMap[ObservedState,Double]]{
+    val corpusEmissionCountsA = new HashMap[HiddenState,HashMap[ObservedState,Double]]{
       override def default( q:HiddenState ) = {
         this += Pair(
           q,
@@ -451,7 +493,7 @@ class CoupledHMM(
       }
     }
 
-    val corpusemissionCountsB = new HashMap[HiddenState,HashMap[ObservedState,Double]]{
+    val corpusEmissionCountsB = new HashMap[HiddenState,HashMap[ObservedState,Double]]{
       override def default( q:HiddenState ) = {
         this += Pair(
           q,
@@ -474,7 +516,8 @@ class CoupledHMM(
     corpus.foreach{ string =>
       val CoupledHMMPartialCounts(
         stringLogProb,
-        initialStateCounts,
+        initialStateCountsA,
+        initialStateCountsB,
         transitionCountsA,
         transitionCountsB,
         emissionCountsA,
@@ -485,10 +528,10 @@ class CoupledHMM(
       assert( transitionCountsA.keySet == transitionCountsB.keySet )
 
       transitionCountsA.keySet.foreach{ qsFrom =>
-        corpusInitialStateCounts(qsFrom) = Maths.sumLogProb(
-            corpusInitialStateCounts(qsFrom),
-            initialStateCounts(qsFrom) //- stringLogProb
-        )
+        // corpusInitialStateCounts(qsFrom) = Maths.sumLogProb(
+        //     corpusInitialStateCounts(qsFrom),
+        //     initialStateCounts(qsFrom)
+        // )
 
         transitionCountsA(qsFrom).keySet.foreach{ qTo =>
           corpustransitionCountsA(qsFrom)(qTo) = Maths.sumLogProb(
@@ -507,9 +550,13 @@ class CoupledHMM(
 
       emissionCountsA.keySet.foreach{ qA =>
         emissionCountsA(qA).keySet.foreach{ obsA =>
-          corpusemissionCountsA(qA)(obsA) = Maths.sumLogProb(
-              corpusemissionCountsA(qA)(obsA),
-              emissionCountsA(qA)(obsA) //- stringLogProb
+          corpusInitialStateCountsA(qA) = Maths.sumLogProb(
+              corpusInitialStateCountsA(qA),
+              initialStateCountsA(qA)
+          )
+          corpusEmissionCountsA(qA)(obsA) = Maths.sumLogProb(
+              corpusEmissionCountsA(qA)(obsA),
+              emissionCountsA(qA)(obsA)
           )
         }
       }
@@ -517,9 +564,13 @@ class CoupledHMM(
 
       emissionCountsB.keySet.foreach{ qB =>
         emissionCountsB(qB).keySet.foreach{ obsB =>
-          corpusemissionCountsB(qB)(obsB) = Maths.sumLogProb(
-              corpusemissionCountsB(qB)(obsB),
-              emissionCountsB(qB)(obsB) //- stringLogProb
+          corpusInitialStateCountsB(qB) = Maths.sumLogProb(
+              corpusInitialStateCountsB(qB),
+              initialStateCountsB(qB)
+          )
+          corpusEmissionCountsB(qB)(obsB) = Maths.sumLogProb(
+              corpusEmissionCountsB(qB)(obsB),
+              emissionCountsB(qB)(obsB)
           )
         }
       }
@@ -529,10 +580,23 @@ class CoupledHMM(
     }
 
 
-    val initialStateProbs = HashMap(
-      corpusInitialStateCounts.keySet.map{ qsFrom =>
-        qsFrom -> 
-          ( corpusInitialStateCounts( qsFrom ) )
+    // val initialStateProbs = HashMap(
+    //   corpusInitialStateCounts.keySet.map{ qFrom =>
+    //     qFrom -> 
+    //       ( corpusInitialStateCountsA( qFrom ) )
+    //   }.toSeq:_*
+    // )
+
+    val initialStateProbsA = HashMap(
+      corpusInitialStateCountsA.keySet.map{ qFrom =>
+        qFrom -> 
+          ( corpusInitialStateCountsA( qFrom ) )
+      }.toSeq:_*
+    )
+    val initialStateProbsB = HashMap(
+      corpusInitialStateCountsB.keySet.map{ qFrom =>
+        qFrom -> 
+          ( corpusInitialStateCountsB( qFrom ) )
       }.toSeq:_*
     )
 
@@ -562,11 +626,11 @@ class CoupledHMM(
 
 
     val emissionProbsA = HashMap(
-      corpusemissionCountsA.keySet.map{ qA =>
+      corpusEmissionCountsA.keySet.map{ qA =>
         qA -> HashMap(
-          corpusemissionCountsA(qA).keySet.map{ obsA =>
+          corpusEmissionCountsA(qA).keySet.map{ obsA =>
             obsA -> (
-              corpusemissionCountsA( qA )( obsA )
+              corpusEmissionCountsA( qA )( obsA )
             )
           }.toSeq:_*
         )
@@ -574,11 +638,11 @@ class CoupledHMM(
     )
 
     val emissionProbsB = HashMap(
-      corpusemissionCountsB.keySet.map{ qB =>
+      corpusEmissionCountsB.keySet.map{ qB =>
         qB -> HashMap(
-          corpusemissionCountsB(qB).keySet.map{ obsB =>
+          corpusEmissionCountsB(qB).keySet.map{ obsB =>
             obsB -> (
-              corpusemissionCountsB( qB )( obsB )
+              corpusEmissionCountsB( qB )( obsB )
             )
           }.toSeq:_*
         )
@@ -586,7 +650,9 @@ class CoupledHMM(
     )
 
 
-    initialStateProbabilities.setPT( initialStateProbs )
+    //initialStateProbabilities.setPT( initialStateProbs )
+    initialStateProbabilitiesA.setPT( initialStateProbsA )
+    initialStateProbabilitiesB.setPT( initialStateProbsB )
     transitionMatrixA.setCPT( transitionProbsA )
     transitionMatrixB.setCPT( transitionProbsB )
     emissionMatrixA.setCPT( emissionProbsA )
@@ -623,8 +689,14 @@ class CoupledHMM(
 
     inferencer.computeMarginals( hmm )
 
-    val initialStateCounts = HashMap(
-      hiddenStateTypes.map{ qs =>
+    val initialStateCountsA = HashMap(
+      hiddATypes.map{ qs =>
+        qs ->  Double.NegativeInfinity
+      }.toSeq:_*
+    )
+
+    val initialStateCountsB = HashMap(
+      hiddBTypes.map{ qs =>
         qs ->  Double.NegativeInfinity
       }.toSeq:_*
     )
@@ -714,8 +786,8 @@ class CoupledHMM(
               // }
 
           if( i == 0 ) {
-            initialStateCounts( qsFrom ) = Maths.sumLogProb(
-                initialStateCounts( qsFrom ),
+            initialStateCountsA( qFromA ) = Maths.sumLogProb(
+                initialStateCountsA( qFromA ),
                 thisTransitionCountA
             )
           }
@@ -755,8 +827,8 @@ class CoupledHMM(
           )
 
           if( i == 0 ) {
-            initialStateCounts( qsFrom ) = Maths.sumLogProb(
-                initialStateCounts( qsFrom ),
+            initialStateCountsB( qFromB ) = Maths.sumLogProb(
+                initialStateCountsB( qFromB ),
                 thisTransitionCountB
             )
           }
@@ -787,7 +859,8 @@ class CoupledHMM(
     //println( "\n\nAbout to hit the doozy?" )
     CoupledHMMPartialCounts(
       generalProbability( tokens ),
-      initialStateCounts,
+      initialStateCountsA,
+      initialStateCountsB,
       transitionCountsA,
       transitionCountsB,
       emissionCountsA,
@@ -798,8 +871,10 @@ class CoupledHMM(
 
   override def toString =
     "  == HMM Parameters == \n" +
-    "\nInitialProbabilities" +
-    initialStateProbabilities +
+    "\nInitialProbabilitiesA" +
+    initialStateProbabilitiesA +
+    "\nInitialProbabilitiesB" +
+    initialStateProbabilitiesB +
     "\ntransitionsA:" +
     transitionMatrixA +
     "\ntransitionsB:" +

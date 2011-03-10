@@ -110,6 +110,7 @@ class PlainHMM(
   }
 
 
+  /*
   def buildSlicedHMM( tokens:List[ObservedState] ) {
     localUniverse = new Universe()
     hmm = new DynamicBayesNet(tokens.size)
@@ -177,6 +178,7 @@ class PlainHMM(
       )
     }
   }
+  */
 
   def buildHMM( tokens:List[ObservedState] ) {
     localUniverse = new Universe()

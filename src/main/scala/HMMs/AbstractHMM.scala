@@ -73,7 +73,7 @@ abstract class AbstractHMM[HiddenType<:HiddenLabel,ObservedType<:ObservedLabel](
 
   def argmax( string:List[ObservedType] ) = {
     buildSlicedHMM( string )
-    val maxAssn = Models.bestAssignment( hmm, JunctionTreeInferencer.createForMaxProduct() )
+    val maxAssn = Models.bestAssignment( hmm, ForwardBackwardInferencer.createForMaxProduct() )
     assignmentToViterbiString( maxAssn )
   }
 

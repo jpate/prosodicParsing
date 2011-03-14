@@ -1,5 +1,6 @@
 package ProsodicParsing.runners
 import ProsodicParsing.HMMs.CoupledHMM
+import ProsodicParsing.HMMs.ZigZagCoupledHMM
 import ProsodicParsing.HMMs.HMMMaster
 import ProsodicParsing.HMMs.HMMActor
 import ProsodicParsing.HMMs.EvaluatingMaster
@@ -15,7 +16,8 @@ object CoupledChunker {
   def main( args:Array[String]) {
     import scala.math.log
 
-    val optsParser = new OptionParser("t:e:c:p:n:r:lubd")
+    val optsParser = new OptionParser("t:e:c:p:n:r:lubdz")
+    optsParser.accepts( "bioCoding" )
 
     val opts = optsParser.parse( args:_* )
 
@@ -29,6 +31,8 @@ object CoupledChunker {
     val unkSmoothedEmissions = opts.has( "u" )
     val smoothBoth = opts.has( "b" )
     val chunkBoth = opts.has( "d" )
+    val zigzagChunker = opts.has( "z" )
+    val bioCoding = opts.has( "bioCoding" )
     //val randSeed = if(args.length > 5 ) args(5).toInt else 15
 
     println( "dataPath: " + dataPath )
@@ -41,26 +45,32 @@ object CoupledChunker {
     println( "unkSmoothedEmissions: " + unkSmoothedEmissions )
     println( "smoothBoth: " + smoothBoth )
     println( "chunkBoth: " + chunkBoth )
+    println( "zigzagChunker: " + zigzagChunker )
+    println( "bioCoding: " + bioCoding )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
-    val obieCoding = Array( "B", "E", "I", "O" )
+    val chunksCoding =
+      if( bioCoding )
+        Array( "B", "I", "O" )
+      else
+        Array( "B", "E", "I", "O" )
 
     val hiddenStates =
       if( chunkBoth )
-        obieCoding.flatMap{ obieCode =>
-          obieCoding.map{ y =>
+        chunksCoding.flatMap{ obieCode =>
+          chunksCoding.map{ y =>
             HiddenStatePair( "C_"+obieCode, "P_"+y )
           }
         }.toSet
       else
-        obieCoding.flatMap{ obieCode =>
+        chunksCoding.flatMap{ obieCode =>
           (0 to (numProsodicStates-1)).map{ y =>
             HiddenStatePair( "C_"+obieCode, "P_"+y )
           }
         }.toSet
 
 
-    val chunkingStates = obieCoding.map{ HiddenState( _ ) }.toSet
+    val chunkingStates = chunksCoding.map{ HiddenState( _ ) }.toSet
 
     val transitionsToZero = hiddenStates.flatMap{ fromTransition =>
       fromTransition match {
@@ -75,10 +85,15 @@ object CoupledChunker {
             Tuple2( fromTransition, HiddenState( "C_B" ) )
           )
         case HiddenStatePair( "C_I", _ ) =>
-          List(
-            Tuple2( fromTransition, HiddenState( "C_O" ) ),
-            Tuple2( fromTransition, HiddenState( "C_B" ) )
-          )
+          if( bioCoding )
+            List(
+              Tuple2( fromTransition, HiddenState( "C_B" ) )
+            )
+          else
+            List(
+              Tuple2( fromTransition, HiddenState( "C_O" ) ),
+              Tuple2( fromTransition, HiddenState( "C_B" ) )
+            )
         case HiddenStatePair( "C_E", _ ) =>
           List(
             Tuple2( fromTransition, HiddenState( "C_I" ) ),
@@ -117,26 +132,10 @@ object CoupledChunker {
         Set[Tuple2[HiddenStatePair,HiddenState]]()
 
 
-    // val initialStatesToZero = hiddenStates.filter{ hiddenState =>
-    //   if( chunkBoth )
-    //     hiddenState match {
-    //       case HiddenStatePair( "C_I", _ ) => true
-    //       case HiddenStatePair( "C_E", _ ) => true
-    //       case HiddenStatePair( _, "P_I" ) => true
-    //       case HiddenStatePair( _, "P_E" ) => true
-    //       case _ => false
-    //     }
-    //   else
-    //     hiddenState match {
-    //       case HiddenStatePair( "C_I", _ ) => true
-    //       case HiddenStatePair( "C_E", _ ) => true
-    //       case _ => false
-    //     }
-    // }
     val initialStatesToZero =
-      Set( "C_E", "C_I" ).map( HiddenState( _ ) )
+      ( Set( "E", "I" ) & chunksCoding.toSet ).map( q => HiddenState( "C_" + q ) )
     val prosodicInitialStatesToZero =
-      Set( "P_E", "P_I" ).map( HiddenState( _ ) )
+      ( Set( "E", "I" ) & chunksCoding.toSet ).map( q => HiddenState( "P_" + q ) )
 
 
     val chunkingTransitions =
@@ -225,19 +224,32 @@ object CoupledChunker {
 
     val manager = actorOf(
         new CoupledHMM(hiddenStates,observationTypes,"Master")
-        with HMMMaster[HiddenStatePair,ObservedStatePair]
-        with EvaluatingMaster[HiddenStatePair,ObservedStatePair] {
+          with HMMMaster[HiddenStatePair,ObservedStatePair]
+          with EvaluatingMaster[HiddenStatePair,ObservedStatePair] {
         val trainingData = corpus
 
         println( "creating " + numHMMs + " HMMs")
         var hmms = (0 to (numHMMs-1)).map{ n =>
-          actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet, n.toString )
-            with HMMActor[HiddenStatePair,ObservedStatePair]).start
+          actorOf(
+            if( zigzagChunker )
+              new ZigZagCoupledHMM( hiddenStates, observationTypes.toSet, n.toString )
+                with HMMActor[HiddenStatePair,ObservedStatePair]
+            else
+              new CoupledHMM( hiddenStates, observationTypes.toSet, n.toString )
+                with HMMActor[HiddenStatePair,ObservedStatePair]
+          ).start
         }.toList
         println( "Made " + hmms.size + " HMMs")
 
-        val viterbiHMM = actorOf( new CoupledHMM( hiddenStates, observationTypes.toSet, "viterbi" ) with
-        HMMActor[HiddenStatePair,ObservedStatePair] )
+        val viterbiHMM =
+          actorOf(
+            if( zigzagChunker )
+              new ZigZagCoupledHMM( hiddenStates, observationTypes.toSet, "viterbi" )
+                with HMMActor[HiddenStatePair,ObservedStatePair]
+            else
+              new CoupledHMM( hiddenStates, observationTypes.toSet, "viterbi" )
+                with HMMActor[HiddenStatePair,ObservedStatePair]
+          )
 
         randomize( randSeed, 10 )
         transitionMatrixA.zeroAll( transitionsToZero )

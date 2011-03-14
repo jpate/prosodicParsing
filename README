@@ -24,21 +24,21 @@ TwoOutputHMM has one hidden stream and two output streams:
 
 CoupledHMM has two hidden streams and two output streams:
 
- a_1        a_2       a_3 ...
-  ^          ^         ^
-  |          |         |
-  |          |         |
- p_1  -->_  p_2  -->_ p_3 ...
-     \   /|     \   /|
+ a_1        a_2        a_3 ...
+  ^          ^          ^
+  |          |          |
+  |          |          |
+ p_1  -->_  p_2  -->_  p_3 ...
+     \   /|     \   /| 
       \ /        \ /
        X          X
       / \        / \
-     /  _\|     /  _\|
- q_1  -->   q_2  -->  q_3 ...
-  |          |         |
-  |          |         |
-  v          v         v
- o_1        o_2       o_3 ...
+     /  _\|     /  _\| 
+ q_1  -->   q_2  -->   q_3 ...
+  |          |          |
+  |          |          |
+  v          v          v
+ o_1        o_2        o_3 ...
 
 
 

@@ -110,83 +110,16 @@ class PlainHMM(
   }
 
 
-  /*
-  def buildSlicedHMM( tokens:List[ObservedState] ) {
-    localUniverse = new Universe()
-    hmm = new DynamicBayesNet(tokens.size)
-
-
-    hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( localUniverse, hiddenStateAlphabet ) )
-    observations = Array.tabulate(tokens.size)( _ => new Variable( localUniverse, observationAlphabet ) )
-
-
-    ( 0 to tokens.size-1 ) foreach{ i =>
-      hiddenVariables(i).setLabel("hidden."+i)
-      observations(i).setLabel("observed."+i)
-    }
-
-
-    // initial states:
-    hmm.addHiddenTimedFactor(
-      new CPT(
-        LogTableFactor.makeFromLogValues(
-          Array( hiddenVariables(0), hiddenVariables(1) ),
-          transitionMatrix.toLogArray
-        ),
-        hiddenVariables(1)
-      ),
-      0
-    )
-    hmm.addInitialStateProbabilities(
-      LogTableFactor.makeFromLogValues(
-        Array( hiddenVariables(0) ),
-        initialStateProbabilities.toLogArray
-      )
-    )
-
-    // state transitions
-    ( 2 to (tokens.size-1) ) foreach{ i =>
-      hmm.addHiddenTimedFactor(
-        new CPT(
-          LogTableFactor.makeFromLogValues(
-            Array( hiddenVariables(i-1), hiddenVariables(i) ),
-              transitionMatrix.toLogArray
-          ),
-          hiddenVariables(i)
-        ),
-        i-1
-      )
-    }
-
-    // emissions
-    ( 0 to tokens.size-1 ) foreach { i =>
-      val thisObservation = new Assignment(
-        observations(i),
-        observationAlphabet.lookupIndex( tokens(i) )
-      )
-
-      hmm.addObservedTimedFactor(
-        new CPT(
-          LogTableFactor.makeFromLogValues(
-            Array( hiddenVariables(i), observations(i) ),
-            emissionMatrix.toLogArray
-          ),
-          observations(i),
-          thisObservation
-        ),
-        i
-      )
-    }
-  }
-  */
 
   def buildHMM( tokens:List[ObservedState] ) {
     localUniverse = new Universe()
     hmm = new DynamicBayesNet(tokens.size)
 
 
-    hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( localUniverse, hiddenStateAlphabet ) )
-    observations = Array.tabulate(tokens.size)( _ => new Variable( localUniverse, observationAlphabet ) )
+    hiddenVariables = Array.tabulate(tokens.size)( t => new DynamicVariable( localUniverse,
+    hiddenStateAlphabet, t ) )
+    observations = Array.tabulate(tokens.size)( t => new DynamicVariable( localUniverse,
+    observationAlphabet, t ) )
 
 
     ( 0 to tokens.size-1 ) foreach{ i =>

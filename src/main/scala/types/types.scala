@@ -476,6 +476,8 @@ abstract class PartialCounts {
   def +( otherPC:PartialCounts ):PartialCounts
   def toParameters:Parameters
   val logProb:Double
+
+  def toTransformedParameters(p:(Double => Double) ):Parameters
 }
 
 case class TwoOutputHMMPartialCounts(
@@ -549,6 +551,13 @@ case class TwoOutputHMMPartialCounts(
     emissionCountsA,
     emissionCountsB
   )
+
+  def toTransformedParameters(p: (Double => Double ) ) = TwoOutputHMMParameters(
+    initialStateCounts.map{ case( a, b ) => ( a, p(b) ) },
+    transitionCounts.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
+    emissionCountsA.map{ case( a, b ) => ( a, b.map{ case ( c, d ) => (c, p(d) ) } ) },
+    emissionCountsB.map{ case( a, b ) => ( a, b.map{ case ( c, d ) => (c, p(d) ) } ) }
+  )
 }
 
 case class PlainHMMPartialCounts(
@@ -606,6 +615,12 @@ case class PlainHMMPartialCounts(
     initialStateCounts,
     transitionCounts,
     emissionCounts
+  )
+
+  def toTransformedParameters(p: (Double => Double ) ) = PlainHMMParameters(
+    initialStateCounts.map{ case( a, b ) => ( a, p(b) ) },
+    transitionCounts.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
+    emissionCounts.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) }
   )
 }
 
@@ -705,6 +720,16 @@ case class CoupledHMMPartialCounts(
     emissionCountsA,
     emissionCountsB
   )
+
+  def toTransformedParameters(p: (Double => Double ) ) = CoupledHMMParameters(
+    initialStateCountsA.map{ case( a, b ) => ( a, p(b) ) },
+    initialStateCountsB.map{ case( a, b ) => ( a, p(b) ) },
+    transitionCountsA.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
+    transitionCountsB.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
+    emissionCountsA.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
+    emissionCountsB.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) }
+  )
+
 }
 
 

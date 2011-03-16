@@ -16,7 +16,7 @@ object CoupledChunker {
   def main( args:Array[String]) {
     import scala.math.log
 
-    val optsParser = new OptionParser("t:e:c:p:n:r:lubdz")
+    val optsParser = new OptionParser("t:e:c:p:n:r:lubdzv")
     optsParser.accepts( "bioCoding" )
 
     val opts = optsParser.parse( args:_* )
@@ -33,6 +33,7 @@ object CoupledChunker {
     val chunkBoth = opts.has( "d" )
     val zigzagChunker = opts.has( "z" )
     val bioCoding = opts.has( "bioCoding" )
+    val variationalBayes = opts.has( "v" )
     //val randSeed = if(args.length > 5 ) args(5).toInt else 15
 
     println( "dataPath: " + dataPath )
@@ -47,6 +48,7 @@ object CoupledChunker {
     println( "chunkBoth: " + chunkBoth )
     println( "zigzagChunker: " + zigzagChunker )
     println( "bioCoding: " + bioCoding )
+    println( "variationalBayes: " + variationalBayes )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
     val chunksCoding =
@@ -224,7 +226,6 @@ object CoupledChunker {
 
     val manager = actorOf(
         new CoupledHMM(hiddenStates,observationTypes,"Master")
-          with HMMMaster[HiddenStatePair,ObservedStatePair]
           with EvaluatingMaster[HiddenStatePair,ObservedStatePair] {
         val trainingData = corpus
 
@@ -240,6 +241,28 @@ object CoupledChunker {
           ).start
         }.toList
         println( "Made " + hmms.size + " HMMs")
+
+        override def mapCounts( input:Double ) = 
+          if( variationalBayes ) {
+            //assert( math.exp( input ) > 0, input )
+
+            if( math.exp( input ) < 0 ) {
+              Double.NegativeInfinity
+            } else {
+              var r = 0D
+              var x = math.exp( input )
+              while( x <= 5 ) {
+                r -= 1/x
+                x += 1
+              }
+              val f = 1/(x*x)
+              val t = f*(-1/12.0 + f*(1/120.0 + f*(-1/252.0 + f*(1/240.0 + f*(-1/132.0 + f*(691/32760.0 +
+                f*(-1/12.0 + f*3617/8160.0)))))));
+              r + math.log(x) - 0.5/x + t;
+            }
+          } else {
+            input
+          }
 
         val viterbiHMM =
           actorOf(

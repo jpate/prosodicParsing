@@ -65,12 +65,14 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
     exit()
   }
 
+  def mapCounts( x:Double ) = x
+
   def iterationEnd {
     iterationCount += 1
 
     val corpusLogProb = summingPartialCounts.logProb
 
-    setParams( summingPartialCounts.toParameters )
+    setParams( summingPartialCounts.toTransformedParameters( mapCounts ) )
     normalize
 
     val deltaLogProb = (corpusLogProb - lastCorpusLogProb)/lastCorpusLogProb
@@ -137,6 +139,24 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
   }
 }
 
+trait VariationalBayesMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
+  // This is the Digamma function ganked from Percy Liang
+  override def mapCounts( input:Double ) = {
+    assert( math.exp( input ) > 0, input )
+
+    var r = 0D
+    var x = math.exp( input )
+    while( x <= 5 ) {
+      r -= 1/x
+      x += 1
+    }
+    val f = 1/(x*x)
+    val t = f*(-1/12.0 + f*(1/120.0 + f*(-1/252.0 + f*(1/240.0 + f*(-1/132.0 + f*(691/32760.0 +
+      f*(-1/12.0 + f*3617/8160.0)))))));
+    r + math.log(x) - 0.5/x + t;
+  }
+}
+
 
 trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
   //val viterbiHMM:HMMActor[Q,O]
@@ -170,7 +190,7 @@ trait EvaluatingMaster[Q<:HiddenLabel,O<:ObservedLabel] extends HMMMaster[Q,O] {
   override def iterationEnd {
     iterationCount += 1
 
-    setParams( summingPartialCounts.toParameters )
+    setParams( summingPartialCounts.toTransformedParameters( mapCounts ) )
     normalize
 
     if( iterationCount % frequency == 0 ) {

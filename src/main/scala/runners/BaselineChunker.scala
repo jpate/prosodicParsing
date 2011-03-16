@@ -15,7 +15,7 @@ object BaselineChunker {
   def main( args:Array[String]) {
     import scala.math.log
 
-    val optsParser = new OptionParser("t:e:c:s:n:r:lu")
+    val optsParser = new OptionParser("t:e:c:s:n:r:luv")
 
     val opts = optsParser.parse( args:_* )
 
@@ -27,6 +27,7 @@ object BaselineChunker {
     val randSeed = if( opts.has( "r" ) ) opts.valueOf( "r" ).toString.toInt else 15
     val lambdaSmoothedEmissions = opts.has( "l" )
     val unkSmoothedEmissions = opts.has( "u" ) 
+    val variationalBayes = opts.has( "v" ) 
 
     println( "dataPath: " + dataPath )
     println( "testDataPath: " +testDataPath )
@@ -36,6 +37,7 @@ object BaselineChunker {
     println( "randSeed: " + randSeed )
     println( "lambdaSmoothedEmissions: " + lambdaSmoothedEmissions )
     println( "unkSmoothedEmissions: " + unkSmoothedEmissions )
+    println( "variationalBayes: " + variationalBayes )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
     val obieCoding = Array( "B", "E", "I", "O" )
@@ -156,9 +158,31 @@ object BaselineChunker {
     // observationTypes.mkString("\t","\n\t","\n" ) )
 
     val manager = actorOf(
-        new PlainHMM(chunkingStates,observationTypes,"Master") with HMMMaster[HiddenState,ObservedState]
+        new PlainHMM(chunkingStates,observationTypes,"Master")
         with EvaluatingMaster[HiddenState,ObservedState] {
         val trainingData = corpus
+
+        override def mapCounts( input:Double ) = 
+          if( variationalBayes ) {
+            //assert( math.exp( input ) > 0, input )
+
+            if( math.exp( input ) < 0 ) {
+              Double.NegativeInfinity
+            } else {
+              var r = 0D
+              var x = math.exp( input )
+              while( x <= 5 ) {
+                r -= 1/x
+                x += 1
+              }
+              val f = 1/(x*x)
+              val t = f*(-1/12.0 + f*(1/120.0 + f*(-1/252.0 + f*(1/240.0 + f*(-1/132.0 + f*(691/32760.0 +
+                f*(-1/12.0 + f*3617/8160.0)))))));
+              r + math.log(x) - 0.5/x + t;
+            }
+          } else {
+            input
+          }
 
         println( "creating " + numHMMs + " HMMs")
         var hmms = (0 to (numHMMs-1)).map{ n =>

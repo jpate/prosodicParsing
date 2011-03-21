@@ -119,6 +119,7 @@ class ZigZagCoupledHMM(
         i
       )
     }
+    //hmm.dump()
   }
 
   override def computePartialCounts( tokens:List[ObservedStatePair] ) = {

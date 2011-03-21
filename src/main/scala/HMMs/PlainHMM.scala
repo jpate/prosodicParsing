@@ -55,18 +55,6 @@ class PlainHMM(
     emissionMatrix.cpt
   )
 
-  def settransitionMatrix( newTransitions:HashMap[HiddenState,HashMap[HiddenState,Double]] ) {
-    transitionMatrix.setCPT( newTransitions )
-  }
-
-  def setemissionMatrix( newEmissions:HashMap[HiddenState,HashMap[ObservedState,Double]] ) {
-    emissionMatrix.setCPT( newEmissions )
-  }
-
-  def setInitialProbs( newInitialProbs:HashMap[HiddenState,Double] ) {
-    initialStateProbabilities.setPT( newInitialProbs )
-  }
-
   def initialPartialCounts = PlainHMMPartialCounts(
       0D,
       HashMap(
@@ -104,9 +92,9 @@ class PlainHMM(
       transitions,
       emissions
     ) = newParams
-    setInitialProbs( initialProbs )
-    settransitionMatrix( transitions )
-    setemissionMatrix( emissions )
+    initialStateProbabilities.setPT( initialProbs )
+    transitionMatrix.setCPT( transitions )
+    emissionMatrix.setCPT( emissions )
   }
 
 
@@ -515,9 +503,10 @@ class PlainHMM(
       }.toSeq:_*
     )
 
-    setemissionMatrix( emissionProbs )
-    settransitionMatrix( transitionProbs )
-    setInitialProbs( stateProbs )
+    initialStateProbabilities.setPT( stateProbs )
+    transitionMatrix.setCPT( transitionProbs )
+    emissionMatrix.setCPT( emissionProbs )
+
 
     //normalize
 
@@ -574,10 +563,9 @@ class PlainHMM(
       }.toSeq:_*
     )
 
-    setemissionMatrix( emissionProbs )
-    settransitionMatrix( transitionProbs )
-    setInitialProbs( stateProbs )
-
+    initialStateProbabilities.setPT( stateProbs )
+    transitionMatrix.setCPT( transitionProbs )
+    emissionMatrix.setCPT( emissionProbs )
 
     totalLogProb
   }

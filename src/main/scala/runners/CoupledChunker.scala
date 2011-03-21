@@ -5,6 +5,7 @@ import ProsodicParsing.HMMs.HMMMaster
 import ProsodicParsing.HMMs.HMMActor
 import ProsodicParsing.HMMs.EvaluatingMaster
 import ProsodicParsing.types._
+import cc.mallet.util.Maths
 import akka.actor.Actor.actorOf
 import akka.actor.ActorRef
 import collection.mutable.HashMap
@@ -244,22 +245,83 @@ object CoupledChunker {
 
         override def mapCounts( input:Double ) = 
           if( variationalBayes ) {
-            //assert( math.exp( input ) > 0, input )
-
-            if( math.exp( input ) < 0 ) {
+            if( input == Double.NegativeInfinity ) {
               Double.NegativeInfinity
             } else {
-              var r = 0D
-              var x = math.exp( input )
-              while( x <= 5 ) {
-                r -= 1/x
-                x += 1
+            //assert( math.exp( input ) > 0, input )
+
+            // if( input == Double.NegativeInfinity ) {
+            //   Double.NegativeInfinity
+            // } else {
+            //   // from Mark Johnson's insideoutside code
+            //   var x = input;
+            //   var result = Double.NegativeInfinity;
+            //   while( x < 7 ) {
+            //     result = Maths.sumLogProb( result, -1 * (math.log( 1 ) - x ) )
+            //     x = Maths.sumLogProb( math.log(1) , x )
+            //   }
+            //   x = Maths.sumLogProb( x, -1* ( math.log(1D) - math.log(2D) ) )
+            //   var xx = math.log( 1D ) - x
+            //   var xx2 = xx + xx
+            //   var xx4 = xx2 + xx2
+            //   result = Maths.sumLogProb(
+            //     Array(
+            //       result,
+            //       x,
+            //       ( math.log(1) - math.log( 24 ) ) + xx2,
+            //       -1 * ( math.log( 7D ) - math.log( 960D ) ) + xx4,
+            //       ( math.log(31D) - math.log( 8064D ) ) + xx4 + xx2,
+            //       -1 * ( math.log( 127D ) - math.log( 30720D ) ) + xx4 + xx4
+            //     )
+            //   )
+            //   result
+            // }
+            if( input == Double.NegativeInfinity ) {
+              Double.NegativeInfinity
+            } else {
+              // from percy liang
+              var r = Double.NegativeInfinity
+              // var r = 0D
+              //var x = math.exp( input )
+              var x = input
+
+              while( x <= math.log( 5 ) ) {
+                r = Maths.sumLogProb( r, -1 * ( math.log(1) - x ) )
+                //r -= math.exp( math.log( 1D )-x );
+                x = Maths.sumLogProb( x, math.log( 1 ) )
               }
-              val f = 1/(x*x)
-              val t = f*(-1/12.0 + f*(1/120.0 + f*(-1/252.0 + f*(1/240.0 + f*(-1/132.0 + f*(691/32760.0 +
-                f*(-1/12.0 + f*3617/8160.0)))))));
-              r + math.log(x) - 0.5/x + t;
+
+              val f = math.log(1) - ( x + x )
+
+              val t = 
+                f + Maths.sumLogProb( Array( -1 * math.log( 1/12.0 ) ,
+                  f + Maths.sumLogProb( Array( math.log( 1/120.0 ) ,
+                    f + Maths.sumLogProb( Array( -1 * math.log( 1/252.0 ) ,
+                      f + Maths.sumLogProb( Array( math.log( 1/240.0 ) ,
+                        f + Maths.sumLogProb( Array( -1 * math.log( 1/132.0 ) ,
+                          f + Maths.sumLogProb( Array( math.log( 691/32760.0 ) ,
+                            f + Maths.sumLogProb( Array( -1 * math.log( 1/12.0 ) ,
+                              f + math.log( 3617/8160.0 )))))))))))))))
+
+              Maths.sumLogProb( Array( r , x , -1* ( math.log( 0.5 ) - x ), t ) )
             }
+            }
+              // //assert( math.exp( input ) > 0, input )
+
+              // if( math.exp( input ) < 0 ) {
+              //   Double.NegativeInfinity
+              // } else {
+              //   var r = 0D
+              //   var x = math.exp( input )
+              //   while( x <= 5 ) {
+              //     r -= 1/x
+              //     x += 1
+              //   }
+              //   val f = 1/(x*x)
+              //   val t = f*(-1/12.0 + f*(1/120.0 + f*(-1/252.0 + f*(1/240.0 + f*(-1/132.0 + f*(691/32760.0 +
+              //     f*(-1/12.0 + f*3617/8160.0)))))));
+              //   r + math.log(x) - 0.5/x + t;
+              // }
           } else {
             input
           }

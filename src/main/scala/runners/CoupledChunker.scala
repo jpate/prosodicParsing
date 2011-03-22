@@ -1,6 +1,7 @@
 package ProsodicParsing.runners
 import ProsodicParsing.HMMs.CoupledHMM
 import ProsodicParsing.HMMs.ZigZagCoupledHMM
+import ProsodicParsing.HMMs.ZagZigCoupledHMM
 import ProsodicParsing.HMMs.HMMMaster
 import ProsodicParsing.HMMs.HMMActor
 import ProsodicParsing.HMMs.EvaluatingMaster
@@ -17,8 +18,10 @@ object CoupledChunker {
   def main( args:Array[String]) {
     import scala.math.log
 
-    val optsParser = new OptionParser("t:e:c:p:n:r:lubdzv")
+    val optsParser = new OptionParser("t:e:c:p:n:r:lubdv")
     optsParser.accepts( "bioCoding" )
+    optsParser.accepts( "zigzag" )
+    optsParser.accepts( "zagzig" )
 
     val opts = optsParser.parse( args:_* )
 
@@ -32,7 +35,8 @@ object CoupledChunker {
     val unkSmoothedEmissions = opts.has( "u" )
     val smoothBoth = opts.has( "b" )
     val chunkBoth = opts.has( "d" )
-    val zigzagChunker = opts.has( "z" )
+    val zigzagChunker = opts.has( "zigzag" )
+    val zagzigChunker = opts.has( "zagzig" )
     val bioCoding = opts.has( "bioCoding" )
     val variationalBayes = opts.has( "v" )
     //val randSeed = if(args.length > 5 ) args(5).toInt else 15
@@ -48,6 +52,7 @@ object CoupledChunker {
     println( "smoothBoth: " + smoothBoth )
     println( "chunkBoth: " + chunkBoth )
     println( "zigzagChunker: " + zigzagChunker )
+    println( "zagzigChunker: " + zagzigChunker )
     println( "bioCoding: " + bioCoding )
     println( "variationalBayes: " + variationalBayes )
 
@@ -236,6 +241,9 @@ object CoupledChunker {
             if( zigzagChunker )
               new ZigZagCoupledHMM( hiddenStates, observationTypes.toSet, n.toString )
                 with HMMActor[HiddenStatePair,ObservedStatePair]
+            else if( zagzigChunker )
+              new ZagZigCoupledHMM( hiddenStates, observationTypes.toSet, n.toString )
+                with HMMActor[HiddenStatePair,ObservedStatePair]
             else
               new CoupledHMM( hiddenStates, observationTypes.toSet, n.toString )
                 with HMMActor[HiddenStatePair,ObservedStatePair]
@@ -330,6 +338,9 @@ object CoupledChunker {
           actorOf(
             if( zigzagChunker )
               new ZigZagCoupledHMM( hiddenStates, observationTypes.toSet, "viterbi" )
+                with HMMActor[HiddenStatePair,ObservedStatePair]
+            else if( zagzigChunker )
+              new ZagZigCoupledHMM( hiddenStates, observationTypes.toSet, "viterbi" )
                 with HMMActor[HiddenStatePair,ObservedStatePair]
             else
               new CoupledHMM( hiddenStates, observationTypes.toSet, "viterbi" )

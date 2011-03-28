@@ -22,6 +22,7 @@ object CoupledChunker {
     optsParser.accepts( "bioCoding" )
     optsParser.accepts( "zigzag" )
     optsParser.accepts( "zagzig" )
+    optsParser.accepts( "unkCutoff" ).withRequiredArg()
 
     val opts = optsParser.parse( args:_* )
 
@@ -39,6 +40,7 @@ object CoupledChunker {
     val zagzigChunker = opts.has( "zagzig" )
     val bioCoding = opts.has( "bioCoding" )
     val variationalBayes = opts.has( "v" )
+    val unkCutoff = if( opts.has( "unkCutoff" ) ) opts.valueOf( "unkCutoff" ).toString.toInt else 1
     //val randSeed = if(args.length > 5 ) args(5).toInt else 15
 
     println( "dataPath: " + dataPath )
@@ -55,6 +57,7 @@ object CoupledChunker {
     println( "zagzigChunker: " + zagzigChunker )
     println( "bioCoding: " + bioCoding )
     println( "variationalBayes: " + variationalBayes )
+    println( "unkCutoff: " + unkCutoff )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
     val chunksCoding =
@@ -173,7 +176,7 @@ object CoupledChunker {
     var unkTokens = 0
     corpus = corpus.map( s =>
       s.map{ case ObservedStatePair( w, p )=>
-        if( findRareWords( w ) == 1 ) {
+        if( findRareWords( w ) <= unkCutoff ) {
           unkTokens += 1
           if( smoothBoth )
             ObservedStatePair( "UNK", "UNK" )
@@ -187,7 +190,7 @@ object CoupledChunker {
 
 
     observationTypes = observationTypes.filter{ case ObservedStatePair( w, _ ) =>
-      findRareWords( w ) > 1
+      findRareWords( w ) > unkCutoff
     } ++ observationTypes.map{
       case ObservedStatePair( _,p ) => p
     }.map{ p => if(smoothBoth) ObservedStatePair( "UNK","UNK") else ObservedStatePair( "UNK", p ) }
@@ -219,7 +222,7 @@ object CoupledChunker {
     println( corpus.size + " training sentences" )
     println( testCorpus.size + " dev sentences" )
     println( unkTokens + " unk tokens in training set" )
-    println( unknownTokens + " unkn tokens in dev set" )
+    println( unknownTokens + " unk tokens in dev set" )
 
 
     //println( "\n\ntestCorpus is: " + testCorpus )

@@ -16,6 +16,7 @@ object BaselineChunker {
   def main( args:Array[String]) {
 
     val optsParser = new OptionParser("t:e:c:s:n:r:luva")
+    optsParser.accepts( "unkCutoff" ).withRequiredArg()
 
     val opts = optsParser.parse( args:_* )
 
@@ -29,6 +30,7 @@ object BaselineChunker {
     val unkSmoothedEmissions = opts.has( "u" ) 
     val variationalBayes = opts.has( "v" ) 
     val useAllStreams = opts.has( "a" ) 
+    val unkCutoff = if( opts.has( "unkCutoff" ) ) opts.valueOf( "unkCutoff" ).toString.toInt else 1
 
     println( "dataPath: " + dataPath )
     println( "testDataPath: " +testDataPath )
@@ -40,6 +42,7 @@ object BaselineChunker {
     println( "unkSmoothedEmissions: " + unkSmoothedEmissions )
     println( "variationalBayes: " + variationalBayes )
     println( "useAllStreams: " + useAllStreams )
+    println( "unkCutoff: " + unkCutoff )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
     val obieCoding = Array( "B", "E", "I", "O" )
@@ -120,7 +123,7 @@ object BaselineChunker {
     var unkTokens = 0
     corpus = corpus.map( s =>
       s.map{ case ObservedState( w )=>
-        if( findRareWords( w ) == 1 ) {
+        if( findRareWords( w ) <= unkCutoff ) {
           unkTokens += 1
           ObservedState( "UNK" )
         } else {
@@ -132,7 +135,7 @@ object BaselineChunker {
 
 
     val observationTypes = Set( corpus.flatten).flatten.toSet.filter( _ match {
-        case ObservedState(w) => findRareWords(w) > 1
+        case ObservedState(w) => findRareWords(w) > unkCutoff
       }
     ) + ObservedState( "UNK" )
 

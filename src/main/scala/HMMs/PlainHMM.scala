@@ -123,8 +123,7 @@ class PlainHMM(
           transitionMatrix.toLogArray
         ),
         hiddenVariables(1)
-      ),
-      0
+      )
     )
     hmm.addInitialStateProbabilities(
       LogTableFactor.makeFromLogValues(
@@ -144,8 +143,7 @@ class PlainHMM(
               transitionMatrix.toLogArray
           ),
           hiddenVariables(i)
-        ),
-        i-1
+        )
       )
     }
 
@@ -158,8 +156,7 @@ class PlainHMM(
             emissionMatrix.toLogArray
           ),
           observations(i)
-        ),
-        i
+        )
       )
     }
   }

@@ -45,7 +45,7 @@ object BaselineChunker {
     println( "unkCutoff: " + unkCutoff )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
-    val obieCoding = Array( "B", "E", "I", "O" )
+    val obieCoding = Array( "C_B", "C_E", "C_I", "C_O" )
 
     // val hiddenStates =
     //   obieCoding.flatMap{ obieCode =>
@@ -59,33 +59,33 @@ object BaselineChunker {
 
     val transitionsToZero = chunkingStates.flatMap{ fromTransition =>
       fromTransition match {
-        case HiddenState( "O" ) =>
+        case HiddenState( "C_O" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "I" ) ),
-            Tuple2( fromTransition, HiddenState( "E" ) )
+            Tuple2( fromTransition, HiddenState( "C_I" ) ),
+            Tuple2( fromTransition, HiddenState( "C_E" ) )
           )
-        case HiddenState( "B" ) =>
+        case HiddenState( "C_B" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "O" ) ),
-            Tuple2( fromTransition, HiddenState( "B" ) )
+            Tuple2( fromTransition, HiddenState( "C_O" ) ),
+            Tuple2( fromTransition, HiddenState( "C_B" ) )
           )
-        case HiddenState( "I" ) =>
+        case HiddenState( "C_I" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "O" ) ),
-            Tuple2( fromTransition, HiddenState( "B" ) )
+            Tuple2( fromTransition, HiddenState( "C_O" ) ),
+            Tuple2( fromTransition, HiddenState( "C_B" ) )
           )
-        case HiddenState( "E" ) =>
+        case HiddenState( "C_E" ) =>
           List(
-            Tuple2( fromTransition, HiddenState( "I" ) ),
-            Tuple2( fromTransition, HiddenState( "E" ) )
+            Tuple2( fromTransition, HiddenState( "C_I" ) ),
+            Tuple2( fromTransition, HiddenState( "C_E" ) )
           )
       }
     }.toSet
 
     val initialStatesToZero = chunkingStates.filter{ hiddenState =>
       hiddenState match {
-        case HiddenState( "I" ) => true
-        case HiddenState( "E" ) => true
+        case HiddenState( "C_I" ) => true
+        case HiddenState( "C_E" ) => true
         case _ => false
       }
     }

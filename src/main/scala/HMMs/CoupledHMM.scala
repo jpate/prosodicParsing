@@ -212,30 +212,6 @@ class CoupledHMM(
 
 
     // initial states:
-        // hmm.addHiddenTimedFactor(
-        //   new CPT(
-        //     LogTableFactor.makeFromLogValues(
-        //       Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarA(1) ),
-        //       transitionMatrixA.toLogArray
-        //       //( initialStateProbabilities * transitionMatrixA).toArray
-        //       //( ( initialStateProbabilitiesA * initialStateProbabilitiesB ) * transitionMatrixA).toArray
-        //     ),
-        //     hiddenVarA(1)
-        //   ),
-        //   0
-        // )
-        // hmm.addHiddenTimedFactor(
-        //   new CPT(
-        //     LogTableFactor.makeFromLogValues(
-        //       Array( hiddenVarA(0) , hiddenVarB(0), hiddenVarB(1) ),
-        //       transitionMatrixB.toLogArray
-        //       //(initialStateProbabilities * transitionMatrixB).toArray
-        //       //( initialStateProbabilitiesA * initialStateProbabilitiesB * transitionMatrixA).toArray
-        //     ),
-        //     hiddenVarB(1)
-        //   ),
-        //   0
-        // )
     hmm.addInitialStateProbabilities(
       LogTableFactor.makeFromLogValues(
         Array( hiddenVarA(0) ),
@@ -258,10 +234,8 @@ class CoupledHMM(
             Array( hiddenVarA(i-1), hiddenVarB(i-1), hiddenVarA(i) ),
             transitionMatrixA.toLogArray
           ),
-        hiddenVarA(i)
-        ),
-        Array( i-1, i-1 ),
-        i
+          hiddenVarA(i)
+        )
       )
       hmm.addHiddenTimedFactor(
         new CPT(
@@ -270,8 +244,7 @@ class CoupledHMM(
             transitionMatrixB.toLogArray
           ),
           hiddenVarB(i)
-        ),
-        i-1
+        )
       )
     }
 
@@ -285,8 +258,7 @@ class CoupledHMM(
             emissionMatrixA.toLogArray
           ),
           obsVarA(i)
-        ),
-        i
+        )
       )
       hmm.addObservedTimedFactor(
         new CPT(
@@ -295,8 +267,7 @@ class CoupledHMM(
             emissionMatrixB.toLogArray
           ),
           obsVarB(i)
-        ),
-        i
+        )
       )
     }
 
@@ -305,12 +276,6 @@ class CoupledHMM(
 
   def reestimate( corpus: List[List[ObservedStatePair]] ) = {
     import math.exp
-
-    /*
-    val corpusInitialStateCounts  = new HashMap[HiddenStatePair,Double] {
-      override def default( qs:HiddenStatePair ) = Double.NegativeInfinity
-    }
-    */
 
     val corpusInitialStateCountsA  = new HashMap[HiddenState,Double] {
       override def default( q:HiddenState ) = Double.NegativeInfinity

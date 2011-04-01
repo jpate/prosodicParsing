@@ -17,8 +17,6 @@ object TwoOutputChunker {
 
     val optsParser = new OptionParser("t:e:c:n:r:lub")
 
-    optsParser.accepts( "doubleObieCoding" )
-
     val opts = optsParser.parse( args:_* )
 
     val dataPath = opts.valueOf( "t" ).toString
@@ -29,7 +27,6 @@ object TwoOutputChunker {
     val lambdaSmoothedEmissions = opts.has( "l" )
     val unkSmoothedEmissions = opts.has( "u" )
     val smoothBoth = opts.has( "b" )
-    val doubleObieCoding = opts.has( "doubleObieCoding" )
     //val randSeed = if(args.length > 5 ) args(5).toInt else 15
 
     println( "dataPath: " + dataPath )
@@ -40,151 +37,40 @@ object TwoOutputChunker {
     println( "lambdaSmoothedEmissions: " + lambdaSmoothedEmissions )
     println( "unkSmoothedEmissions: " + unkSmoothedEmissions )
     println( "smoothBoth: " + smoothBoth )
-    println( "doubleObieCoding: " + doubleObieCoding )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
-    val obieCoding =
-    // The first character is the higher level structure.
-      if( doubleObieCoding )
-        Array(
-          "C_OO",
-          "C_BB",
-            "C_BO",
-          "C_II",
-            "C_IB",
-            "C_IE",
-            "C_IO",
-          "C_EE",
-            "C_EO"
-          )
-      else
-        Array( "C_B", "C_E", "C_I", "C_O" )
+    val obieCoding = Array( "C_B", "C_E", "C_I", "C_O" )
 
 
     val chunkingStates = obieCoding.map{ HiddenState( _ ) }.toSet
 
     val transitionsToZero = chunkingStates.flatMap{ fromTransition =>
-      if( doubleObieCoding )
-        fromTransition match {
-          case HiddenState( "C_OO" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_II" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IE" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EE" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EO" ) )
-            )
-          case HiddenState( "C_BB" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_BB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_OO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_BO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EO" ) )
-            )
-          case HiddenState( "C_BO" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_BB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_BO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_OO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_II" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IE" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EE" ) )
-            )
-          case HiddenState( "C_II" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_OO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_BB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_BO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EO" ) )
-            )
-          case HiddenState( "C_IB" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_OO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_BB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_BO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EO" ) )
-            )
-          case HiddenState( "C_IE" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_OO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_BB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_BO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_II" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IE" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EE" ) )
-            )
-          case HiddenState( "C_IO" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_OO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_BB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_BO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_II" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IE" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EE" ) )
-            )
-          case HiddenState( "C_EE" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_II" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IE" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EE" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EO" ) )
-            )
-          case HiddenState( "C_EO" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_II" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IB" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IE" ) ),
-              Tuple2( fromTransition, HiddenState( "C_IO" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EE" ) ),
-              Tuple2( fromTransition, HiddenState( "C_EO" ) )
-            )
-        }
-      else
-        fromTransition match {
-          case HiddenState( "C_O" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_I" ) ),
-              Tuple2( fromTransition, HiddenState( "C_E" ) )
-            )
-          case HiddenState( "C_B" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_O" ) ),
-              Tuple2( fromTransition, HiddenState( "C_B" ) )
-            )
-          case HiddenState( "C_I" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_O" ) ),
-              Tuple2( fromTransition, HiddenState( "C_B" ) )
-            )
-          case HiddenState( "C_E" ) =>
-            List(
-              Tuple2( fromTransition, HiddenState( "C_I" ) ),
-              Tuple2( fromTransition, HiddenState( "C_E" ) )
-            )
-        }
+      fromTransition match {
+        case HiddenState( "C_O" ) =>
+          List(
+            Tuple2( fromTransition, HiddenState( "C_I" ) ),
+            Tuple2( fromTransition, HiddenState( "C_E" ) )
+          )
+        case HiddenState( "C_B" ) =>
+          List(
+            Tuple2( fromTransition, HiddenState( "C_O" ) ),
+            Tuple2( fromTransition, HiddenState( "C_B" ) )
+          )
+        case HiddenState( "C_I" ) =>
+          List(
+            Tuple2( fromTransition, HiddenState( "C_O" ) ),
+            Tuple2( fromTransition, HiddenState( "C_B" ) )
+          )
+        case HiddenState( "C_E" ) =>
+          List(
+            Tuple2( fromTransition, HiddenState( "C_I" ) ),
+            Tuple2( fromTransition, HiddenState( "C_E" ) )
+          )
+      }
     }.toSet
 
     val initialStatesToZero =
-      if( doubleObieCoding )
-        Set(
-          "C_II",
-            "C_IB",
-            "C_IE",
-            "C_IO",
-          "C_EE",
-            "C_EO"
-        ).map( HiddenState( _ ) )
-      else
-        Set( "C_E", "C_I" ).map( HiddenState( _ ) )
+      Set( "C_E", "C_I" ).map( HiddenState( _ ) )
 
 
     val chunkingTransitions =

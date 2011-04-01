@@ -133,10 +133,16 @@ class TwoOutputHMM(
 
     stringLength = tokens.size
 
-    hiddenVariables = Array.tabulate(tokens.size)( _ => new Variable( localUniverse, hiddenStateAlphabet ) )
+    hiddenVariables = Array.tabulate(tokens.size)( t =>
+      new DynamicVariable( localUniverse, hiddenStateAlphabet, t )
+    )
 
-    val obsVarA = Array.tabulate( tokens.size )( _ => new Variable( localUniverse, obsAlphA ) )
-    val obsVarB = Array.tabulate( tokens.size )( _ => new Variable( localUniverse, obsAlphB ) )
+    val obsVarA = Array.tabulate( tokens.size )( t =>
+      new DynamicVariable( localUniverse, obsAlphA, t)
+    )
+    val obsVarB = Array.tabulate( tokens.size )( t =>
+      new DynamicVariable( localUniverse, obsAlphB, t )
+    )
 
     observations = obsVarA ++ obsVarB
 
@@ -153,12 +159,9 @@ class TwoOutputHMM(
         LogTableFactor.makeFromLogValues(
           Array( hiddenVariables(0), hiddenVariables(1) ),
           transitionMatrix.toLogArray
-          //( initialStateProbabilities * transitionMatrixA).toArray
-          //( ( initialStateProbabilitiesA * initialStateProbabilitiesB ) * transitionMatrixA).toArray
         ),
         hiddenVariables(1)
-      ),
-      0
+      )
     )
     hmm.addInitialStateProbabilities(
       LogTableFactor.makeFromLogValues(
@@ -176,8 +179,7 @@ class TwoOutputHMM(
             transitionMatrix.toLogArray
           ),
         hiddenVariables(i)
-        ),
-        i-1
+        )
       )
     }
 
@@ -191,8 +193,7 @@ class TwoOutputHMM(
             emissionMatrixA.toLogArray
           ),
           obsVarA(i)
-        ),
-        i
+        )
       )
       hmm.addObservedTimedFactor(
         new CPT(
@@ -201,8 +202,7 @@ class TwoOutputHMM(
             emissionMatrixB.toLogArray
           ),
           obsVarB(i)
-        ),
-        i
+        )
       )
     }
   }

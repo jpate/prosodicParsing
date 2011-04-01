@@ -79,10 +79,7 @@ class ZigZagCoupledHMM(
             transitionMatrixA.toLogArray
           ),
         hiddenVarA(i)
-        ),
-        Array(i-1,i),
-        i
-        //i-1
+        )
       )
       hmm.addHiddenTimedFactor(
         new CPT(
@@ -91,8 +88,7 @@ class ZigZagCoupledHMM(
             transitionMatrixB.toLogArray
           ),
           hiddenVarB(i)
-        ),
-        i-1
+        )
       )
     }
 
@@ -105,8 +101,7 @@ class ZigZagCoupledHMM(
             emissionMatrixA.toLogArray
           ),
           obsVarA(i)
-        ),
-        i
+        )
       )
       hmm.addObservedTimedFactor(
         new CPT(
@@ -115,11 +110,9 @@ class ZigZagCoupledHMM(
             emissionMatrixB.toLogArray
           ),
           obsVarB(i)
-        ),
-        i
+        )
       )
     }
-    //hmm.dump()
   }
 
   override def computePartialCounts( tokens:List[ObservedStatePair] ) = {

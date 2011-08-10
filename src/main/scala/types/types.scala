@@ -560,6 +560,97 @@ case class TwoOutputHMMPartialCounts(
   )
 }
 
+case class TwoOutputHMFGPartialCounts(
+  stringLogProb: Double,
+  initialStateCounts: HashMap[HiddenState,Double],
+  finalStateCounts: HashMap[HiddenState,Double],
+  transitionCounts: HashMap[HiddenState,HashMap[HiddenState,Double]],
+  emissionCountsA: HashMap[HiddenState,HashMap[ObservedState,Double]],
+  emissionCountsB: HashMap[HiddenState,HashMap[ObservedState,Double]]
+) extends PartialCounts {
+  val logProb = stringLogProb
+  def +( otherPC: PartialCounts ) = {
+    val TwoOutputHMFGPartialCounts(
+      otherStringLogProb,
+      otherInitialStateCounts,
+      otherFinalStateCounts,
+      otherTransitionCounts,
+      otherEmissionCountsA,
+      otherEmissionCountsB
+    ) = otherPC
+
+    TwoOutputHMFGPartialCounts(
+      stringLogProb + otherStringLogProb,
+      HashMap(
+        initialStateCounts.keySet.map{ q =>
+          q -> Maths.sumLogProb(
+            initialStateCounts(q), otherInitialStateCounts(q)
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        initialStateCounts.keySet.map{ q =>
+          q -> Maths.sumLogProb(
+            finalStateCounts(q), otherFinalStateCounts(q)
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        transitionCounts.keySet.map{ qFrom =>
+          qFrom -> HashMap(
+            transitionCounts(qFrom).keySet.map{ qTo =>
+              qTo -> Maths.sumLogProb(
+                  transitionCounts(qFrom)(qTo),
+                  otherTransitionCounts(qFrom)(qTo)
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        emissionCountsA.keySet.map{ q =>
+          q -> HashMap(
+            emissionCountsA(q).keySet.map{ obs =>
+              obs -> Maths.sumLogProb(
+                emissionCountsA(q)(obs),
+                otherEmissionCountsA(q)(obs)
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        emissionCountsB.keySet.map{ q =>
+          q -> HashMap(
+            emissionCountsB(q).keySet.map{ obs =>
+              obs -> Maths.sumLogProb(
+                emissionCountsB(q)(obs),
+                otherEmissionCountsB(q)(obs)
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      )
+    )
+  }
+
+  def toParameters = TwoOutputHMFGParameters(
+    initialStateCounts,
+    finalStateCounts,
+    transitionCounts,
+    emissionCountsA,
+    emissionCountsB
+  )
+
+  def toTransformedParameters(p: (Double => Double ) ) = TwoOutputHMFGParameters(
+    initialStateCounts.map{ case( a, b ) => ( a, p(b) ) },
+    finalStateCounts.map{ case( a, b ) => ( a, p(b) ) },
+    transitionCounts.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
+    emissionCountsA.map{ case( a, b ) => ( a, b.map{ case ( c, d ) => (c, p(d) ) } ) },
+    emissionCountsB.map{ case( a, b ) => ( a, b.map{ case ( c, d ) => (c, p(d) ) } ) }
+  )
+}
+
 case class PlainHMMPartialCounts(
   stringLogProb: Double,
   initialStateCounts: HashMap[HiddenState,Double],
@@ -619,6 +710,81 @@ case class PlainHMMPartialCounts(
 
   def toTransformedParameters(p: (Double => Double ) ) = PlainHMMParameters(
     initialStateCounts.map{ case( a, b ) => ( a, p(b) ) },
+    transitionCounts.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
+    emissionCounts.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) }
+  )
+}
+
+case class PlainHMFGPartialCounts(
+  stringLogProb: Double,
+  initialStateCounts: HashMap[HiddenState,Double],
+  finalStateCounts: HashMap[HiddenState,Double],
+  transitionCounts: HashMap[HiddenState,HashMap[HiddenState,Double]],
+  emissionCounts: HashMap[HiddenState,HashMap[ObservedState,Double]]
+) extends PartialCounts {
+  val logProb = stringLogProb
+  def +( otherPC: PartialCounts ) = {
+    val PlainHMFGPartialCounts(
+      otherStringLogProb,
+      otherInitialStateCounts,
+      otherFinalStateCounts,
+      otherTransitionCounts,
+      otherEmissionCounts
+    ) = otherPC
+
+    PlainHMFGPartialCounts(
+      stringLogProb + otherStringLogProb,
+      HashMap(
+        initialStateCounts.keySet.map{ q =>
+          q -> Maths.sumLogProb(
+            initialStateCounts(q), otherInitialStateCounts(q) //- otherStringLogProb
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        finalStateCounts.keySet.map{ q =>
+          q -> Maths.sumLogProb(
+            finalStateCounts(q), otherFinalStateCounts(q) //- otherStringLogProb
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        transitionCounts.keySet.map{ qFrom =>
+          qFrom -> HashMap(
+            transitionCounts(qFrom).keySet.map{ qTo =>
+              qTo -> Maths.sumLogProb(
+                  transitionCounts(qFrom)(qTo),
+                  otherTransitionCounts(qFrom)(qTo) //- otherStringLogProb
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        emissionCounts.keySet.map{ q =>
+          q -> HashMap(
+            emissionCounts(q).keySet.map{ obs =>
+              obs -> Maths.sumLogProb(
+                emissionCounts(q)(obs),
+                otherEmissionCounts(q)(obs) //- otherStringLogProb
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      )
+    )
+  }
+
+  def toParameters = PlainHMFGParameters(
+    initialStateCounts,
+    finalStateCounts,
+    transitionCounts,
+    emissionCounts
+  )
+
+  def toTransformedParameters(p: (Double => Double ) ) = PlainHMFGParameters(
+    initialStateCounts.map{ case( a, b ) => ( a, p(b) ) },
+    finalStateCounts.map{ case( a, b ) => ( a, p(b) ) },
     transitionCounts.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
     emissionCounts.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) }
   )
@@ -729,6 +895,131 @@ case class CoupledHMMPartialCounts(
     emissionCountsA.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
     emissionCountsB.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) }
   )
+}
+
+case class CoupledHMFGPartialCounts(
+  stringLogProb: Double,
+  initialStateCountsA: HashMap[HiddenState,Double],
+  initialStateCountsB: HashMap[HiddenState,Double],
+  finalStateCountsA: HashMap[HiddenState,Double],
+  finalStateCountsB: HashMap[HiddenState,Double],
+  transitionCountsA: HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
+  transitionCountsB: HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
+  emissionCountsA: HashMap[HiddenState,HashMap[ObservedState,Double]],
+  emissionCountsB: HashMap[HiddenState,HashMap[ObservedState,Double]]
+) extends PartialCounts {
+  val logProb = stringLogProb
+  def +( otherPC: PartialCounts ) = {
+    val CoupledHMFGPartialCounts(
+      otherStringLogProb,
+      otherInitialStateCountsA,
+      otherInitialStateCountsB,
+      otherFinalStateCountsA,
+      otherFinalStateCountsB,
+      otherTransitionCountsA,
+      otherTransitionCountsB,
+      otherEmissionCountsA,
+      otherEmissionCountsB
+    ) = otherPC
+
+    CoupledHMFGPartialCounts(
+      stringLogProb + otherStringLogProb,
+      HashMap(
+        initialStateCountsA.keySet.map{ q =>
+          q -> Maths.sumLogProb(
+            initialStateCountsA(q), otherInitialStateCountsA(q)
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        initialStateCountsB.keySet.map{ q =>
+          q -> Maths.sumLogProb(
+            initialStateCountsB(q), otherInitialStateCountsB(q)
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        finalStateCountsA.keySet.map{ q =>
+          q -> Maths.sumLogProb(
+            finalStateCountsA(q), otherFinalStateCountsA(q)
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        finalStateCountsB.keySet.map{ q =>
+          q -> Maths.sumLogProb(
+            finalStateCountsB(q), otherFinalStateCountsB(q)
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        transitionCountsA.keySet.map{ qsFrom =>
+          qsFrom -> HashMap(
+            transitionCountsA(qsFrom).keySet.map{ qA =>
+              qA -> Maths.sumLogProb(
+                  transitionCountsA(qsFrom)(qA),
+                  otherTransitionCountsA(qsFrom)(qA) //- otherStringLogProb
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        transitionCountsB.keySet.map{ qsFrom =>
+          qsFrom -> HashMap(
+            transitionCountsB(qsFrom).keySet.map{ qB =>
+              qB -> Maths.sumLogProb(
+                  transitionCountsB(qsFrom)(qB),
+                  otherTransitionCountsB(qsFrom)(qB) //- otherStringLogProb
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        emissionCountsA.keySet.map{ qsFrom =>
+          qsFrom -> HashMap(
+            emissionCountsA(qsFrom).keySet.map{ obsA =>
+              obsA -> Maths.sumLogProb(
+                  emissionCountsA(qsFrom)(obsA),
+                  otherEmissionCountsA(qsFrom)(obsA) //- otherStringLogProb
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      ),
+      HashMap(
+        emissionCountsB.keySet.map{ qsFrom =>
+          qsFrom -> HashMap(
+            emissionCountsB(qsFrom).keySet.map{ obsB =>
+              obsB -> Maths.sumLogProb(
+                  emissionCountsB(qsFrom)(obsB),
+                  otherEmissionCountsB(qsFrom)(obsB) //- otherStringLogProb
+              )
+            }.toSeq:_*
+          )
+        }.toSeq:_*
+      )
+    )
+  }
+
+  def toParameters = CoupledHMMParameters(
+    initialStateCountsA,
+    initialStateCountsB,
+    transitionCountsA,
+    transitionCountsB,
+    emissionCountsA,
+    emissionCountsB
+  )
+
+  def toTransformedParameters(p: (Double => Double ) ) = CoupledHMMParameters(
+    initialStateCountsA.map{ case( a, b ) => ( a, p(b) ) },
+    initialStateCountsB.map{ case( a, b ) => ( a, p(b) ) },
+    transitionCountsA.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
+    transitionCountsB.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
+    emissionCountsA.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
+    emissionCountsB.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) }
+  )
 
 }
 
@@ -736,25 +1027,53 @@ case class CoupledHMMPartialCounts(
 abstract class Parameters
 
 case class TwoOutputHMMParameters(
-initialProbs:HashMap[HiddenState,Double],
-transitions:HashMap[HiddenState,HashMap[HiddenState,Double]],
-emissionsA:HashMap[HiddenState,HashMap[ObservedState,Double]],
-emissionsB:HashMap[HiddenState,HashMap[ObservedState,Double]]
+  initialProbs:HashMap[HiddenState,Double],
+  transitions:HashMap[HiddenState,HashMap[HiddenState,Double]],
+  emissionsA:HashMap[HiddenState,HashMap[ObservedState,Double]],
+  emissionsB:HashMap[HiddenState,HashMap[ObservedState,Double]]
 ) extends Parameters
+
+case class TwoOutputHMFGParameters(
+  initialProbs:HashMap[HiddenState,Double],
+  finalProbs:HashMap[HiddenState,Double],
+  transitions:HashMap[HiddenState,HashMap[HiddenState,Double]],
+  emissionsA:HashMap[HiddenState,HashMap[ObservedState,Double]],
+  emissionsB:HashMap[HiddenState,HashMap[ObservedState,Double]]
+) extends Parameters
+
 
 case class CoupledHMMParameters(
-initialProbsA:HashMap[HiddenState,Double],
-initialProbsB:HashMap[HiddenState,Double],
-transitionsA:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
-transitionsB:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
-emissionsA:HashMap[HiddenState,HashMap[ObservedState,Double]],
-emissionsB:HashMap[HiddenState,HashMap[ObservedState,Double]]
+  initialProbsA:HashMap[HiddenState,Double],
+  initialProbsB:HashMap[HiddenState,Double],
+  transitionsA:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
+  transitionsB:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
+  emissionsA:HashMap[HiddenState,HashMap[ObservedState,Double]],
+  emissionsB:HashMap[HiddenState,HashMap[ObservedState,Double]]
 ) extends Parameters
 
+case class CoupledHMFGParameters(
+  initialProbsA:HashMap[HiddenState,Double],
+  initialProbsB:HashMap[HiddenState,Double],
+  finalProbsA:HashMap[HiddenState,Double],
+  finalProbsB:HashMap[HiddenState,Double],
+  transitionsA:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
+  transitionsB:HashMap[HiddenStatePair,HashMap[HiddenState,Double]],
+  emissionsA:HashMap[HiddenState,HashMap[ObservedState,Double]],
+  emissionsB:HashMap[HiddenState,HashMap[ObservedState,Double]]
+) extends Parameters
+
+
 case class PlainHMMParameters(
-initialProbs:HashMap[HiddenState,Double],
-transitions:HashMap[HiddenState,HashMap[HiddenState,Double]],
-emissions:HashMap[HiddenState,HashMap[ObservedState,Double]]
+  initialProbs:HashMap[HiddenState,Double],
+  transitions:HashMap[HiddenState,HashMap[HiddenState,Double]],
+  emissions:HashMap[HiddenState,HashMap[ObservedState,Double]]
+) extends Parameters
+
+case class PlainHMFGParameters(
+  initialProbs:HashMap[HiddenState,Double],
+  finalProbs:HashMap[HiddenState,Double],
+  transitions:HashMap[HiddenState,HashMap[HiddenState,Double]],
+  emissions:HashMap[HiddenState,HashMap[ObservedState,Double]]
 ) extends Parameters
 
 abstract class Estimate

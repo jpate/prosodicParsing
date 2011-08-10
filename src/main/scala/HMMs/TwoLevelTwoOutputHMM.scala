@@ -1,9 +1,10 @@
+/*
 package ProsodicParsing.HMMs
 
 import ProsodicParsing.types._
-import ProsodicParsing.types.distributions._
-import ProsodicParsing.types.parameters._
-import ProsodicParsing.types.partialCounts._
+// import ProsodicParsing.types.distributions._
+// import ProsodicParsing.types.parameters._
+// import ProsodicParsing.types.partialCounts._
 import cc.mallet.types.LabelAlphabet
 import cc.mallet.grmm._
 import cc.mallet.grmm.types._
@@ -512,4 +513,5 @@ class TwoLevelTwoOutputHMM(
     "\nemissionsB" +
     emissionMatrixB
 }
+*/
 

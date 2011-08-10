@@ -111,3 +111,8 @@ console
 package
 console
 package
+compile
+doc
+compile
+clean
+package

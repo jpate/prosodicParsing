@@ -12,7 +12,7 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
 
-object BaselineChunker {
+object PlainHMFGChunker {
   def main( args:Array[String]) {
 
     val optsParser = new OptionParser("t:e:c:s:n:r:luva")
@@ -90,6 +90,13 @@ object BaselineChunker {
       }
     }
 
+    val finalStatesToZero = chunkingStates.filter{ hiddenState =>
+      hiddenState match {
+        case HiddenState( "C_B" ) => true
+        case HiddenState( "C_I" ) => true
+        case _ => false
+      }
+    }
 
     val chunkingTransitions =
       new ConditionalLogProbabilityDistribution( chunkingStates, chunkingStates )
@@ -272,6 +279,7 @@ object BaselineChunker {
         randomize( randSeed, 10 )
         transitionMatrix.zeroAll( transitionsToZero )
         initialStateProbabilities.zeroAll( initialStatesToZero )
+        finalStateProbabilities.zeroAll( finalStatesToZero )
 
         if( lambdaSmoothedEmissions ) {
           emissionMatrix =

@@ -116,3 +116,11 @@ doc
 compile
 clean
 package
+scalaVersion
+scala-version
+scala-version += 2.9.0-1
+reload
+clean
+package
+reload
+package

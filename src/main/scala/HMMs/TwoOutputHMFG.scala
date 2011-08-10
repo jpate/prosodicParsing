@@ -541,6 +541,8 @@ class TwoOutputHMFG(
     "  == HMM Parameters == \n" +
     "\nInitialProbabilities" +
     initialStateProbabilities +
+    "\nFinalProbabilities" +
+    finalStateProbabilities +
     "\nTransitions:" +
     transitionMatrix +
     "\nEmissionsA" +

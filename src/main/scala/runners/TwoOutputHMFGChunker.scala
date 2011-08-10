@@ -11,7 +11,7 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
 
-object TwoOutputChunker {
+object TwoOutputHMFGChunker {
   def main( args:Array[String]) {
     import scala.math.log
 
@@ -71,6 +71,9 @@ object TwoOutputChunker {
 
     val initialStatesToZero =
       Set( "C_E", "C_I" ).map( HiddenState( _ ) )
+
+    val finalStatesToZero =
+      Set( "C_B", "C_I" ).map( HiddenState( _ ) )
 
 
     val chunkingTransitions =
@@ -176,6 +179,7 @@ object TwoOutputChunker {
         randomize( randSeed, 10 )
         transitionMatrix.zeroAll( transitionsToZero )
         initialStateProbabilities.zeroAll( initialStatesToZero )
+        finalStateProbabilities.zeroAll( finalStatesToZero )
 
         if( lambdaSmoothedEmissions ) {
           emissionMatrixA =

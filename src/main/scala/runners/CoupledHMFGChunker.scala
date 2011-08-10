@@ -12,7 +12,7 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
 
-object CoupledChunker {
+object CoupledHMFGChunker {
   def main( args:Array[String]) {
     import scala.math.log
 
@@ -139,6 +139,11 @@ object CoupledChunker {
       ( Set( "E", "I" ) & chunksCoding.toSet ).map( q => HiddenState( "C_" + q ) )
     val prosodicInitialStatesToZero =
       ( Set( "E", "I" ) & chunksCoding.toSet ).map( q => HiddenState( "P_" + q ) )
+
+    val finalStatesToZero =
+      ( Set( "B", "I" ) & chunksCoding.toSet ).map( q => HiddenState( "C_" + q ) )
+    val prosodicFinalStatesToZero =
+      ( Set( "B", "I" ) & chunksCoding.toSet ).map( q => HiddenState( "P_" + q ) )
 
 
     val chunkingTransitions =
@@ -331,6 +336,7 @@ object CoupledChunker {
         randomize( randSeed, 10 )
         transitionMatrixA.zeroAll( transitionsToZero )
         initialStateProbabilitiesA.zeroAll( initialStatesToZero )
+        finalStateProbabilitiesA.zeroAll( finalStatesToZero )
 
         if( chunkBoth ) {
           initialStateProbabilitiesB.zeroAll( prosodicInitialStatesToZero )

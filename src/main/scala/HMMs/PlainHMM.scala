@@ -432,7 +432,7 @@ class PlainHMM(
 
       corpusInitialStateDenominator = Maths.sumLogProb(
           corpusInitialStateDenominator,
-          stringInitialStateDenominator //- stringLogProb
+          stringInitialStateDenominator
       )
 
 
@@ -440,26 +440,26 @@ class PlainHMM(
         stringTransitionCounts(qFrom).keySet.foreach{ qTo =>
           corpusTransitionCounts(qFrom)(qTo) = Maths.sumLogProb(
               corpusTransitionCounts(qFrom)(qTo),
-              stringTransitionCounts(qFrom)(qTo) //- stringLogProb
+              stringTransitionCounts(qFrom)(qTo)
           )
         }
         corpusInitialStateCounts(qFrom) = Maths.sumLogProb(
             corpusInitialStateCounts(qFrom),
-            stringInitialStateCounts(qFrom) //- stringLogProb
+            stringInitialStateCounts(qFrom)
         )
         corpusTransitionDenominator(qFrom) = Maths.sumLogProb(
             corpusTransitionDenominator(qFrom),
-            stringTransitionDenominator(qFrom) //- stringLogProb
+            stringTransitionDenominator(qFrom)
         )
         stringEmissionCounts(qFrom).keySet.foreach{ obs =>
           corpusEmissionCounts(qFrom)(obs) = Maths.sumLogProb(
               corpusEmissionCounts(qFrom)(obs),
-              stringEmissionCounts(qFrom)(obs) //- stringLogProb
+              stringEmissionCounts(qFrom)(obs)
           )
         }
         corpusEmissionDenominator(qFrom) = Maths.sumLogProb(
             corpusEmissionDenominator(qFrom),
-            stringEmissionDenominator(qFrom) //- stringLogProb
+            stringEmissionDenominator(qFrom)
         )
       }
 

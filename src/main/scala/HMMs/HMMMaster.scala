@@ -62,7 +62,7 @@ trait HMMMaster[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
   }
 
   def emEnd {
-    exit()
+    sys.exit()
   }
 
   def mapCounts( x:Double ) = x

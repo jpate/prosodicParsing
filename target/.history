@@ -124,3 +124,28 @@ clean
 package
 reload
 package
+clean-package
+clean
+package
+clean
+package
+doc
+reload
+doc
+package
+reload
+sbt-version
+about
+update
+sbt-version = 0.11.2
+sbt-version := 0.11.2
+reload
+package
+update
+reload
+upgrade
+pakcage
+package
+clean
+pakcage
+package

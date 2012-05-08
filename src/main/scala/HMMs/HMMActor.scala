@@ -52,7 +52,7 @@ trait HMMActor[Q<:HiddenLabel,O<:ObservedLabel] extends Actor {
       }
       if( iteration == -1 ) {
         self.reply( Stop )
-        exit
+        sys.exit()
       }
     }
     case somethingElse:Any => println( "Slave HMM " + hmmID + " got something else:\n" + somethingElse )

@@ -16,6 +16,7 @@ object TwoOutputHMFGChunker {
     import scala.math.log
 
     val optsParser = new OptionParser("t:e:c:n:r:lub")
+    optsParser.accepts( "unkCutoff" ).withRequiredArg()
 
     val opts = optsParser.parse( args:_* )
 
@@ -27,6 +28,7 @@ object TwoOutputHMFGChunker {
     val lambdaSmoothedEmissions = opts.has( "l" )
     val unkSmoothedEmissions = opts.has( "u" )
     val smoothBoth = opts.has( "b" )
+    val unkCutoff = if( opts.has( "unkCutoff" ) ) opts.valueOf( "unkCutoff" ).toString.toInt else 1
     //val randSeed = if(args.length > 5 ) args(5).toInt else 15
 
     println( "dataPath: " + dataPath )
@@ -37,6 +39,7 @@ object TwoOutputHMFGChunker {
     println( "lambdaSmoothedEmissions: " + lambdaSmoothedEmissions )
     println( "unkSmoothedEmissions: " + unkSmoothedEmissions )
     println( "smoothBoth: " + smoothBoth )
+    println( "unkCutoff: " + unkCutoff )
 
     //val obieCoding = Array( "O", "B", "I", "E" )
     val obieCoding = Array( "C_B", "C_E", "C_I", "C_O" )
@@ -103,7 +106,7 @@ object TwoOutputHMFGChunker {
     var unkTokens = 0
     corpus = corpus.map( s =>
       s.map{ case ObservedStatePair( w, p )=>
-        if( findRareWords( w ) == 1 ) {
+        if( findRareWords( w ) == unkCutoff ) {
           unkTokens += 1
           if( smoothBoth )
             ObservedStatePair( "UNK", "UNK" )
@@ -117,7 +120,7 @@ object TwoOutputHMFGChunker {
 
 
     observationTypes = observationTypes.filter{ case ObservedStatePair( w, _ ) =>
-      findRareWords( w ) > 1
+      findRareWords( w ) > unkCutoff
     } ++ observationTypes.map{
       case ObservedStatePair( _,p ) => p
     }.map{ p => if(smoothBoth) ObservedStatePair( "UNK","UNK") else ObservedStatePair( "UNK", p ) }

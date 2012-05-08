@@ -24,12 +24,12 @@ object PlainHMFGChunker {
     val testDataPath = opts.valueOf( "e" ).toString
     val convergenceTolerance = opts.valueOf( "c" ).toString.toDouble
     val numHMFGs = opts.valueOf("n").toString.toInt
-    val whichStream = opts.valueOf( "s" ).toString.toInt
     val randSeed = if( opts.has( "r" ) ) opts.valueOf( "r" ).toString.toInt else 15
     val lambdaSmoothedEmissions = opts.has( "l" )
     val unkSmoothedEmissions = opts.has( "u" ) 
     val variationalBayes = opts.has( "v" ) 
     val useAllStreams = opts.has( "a" ) 
+    val whichStream = if( useAllStreams ) 0 else opts.valueOf( "s" ).toString.toInt
     val unkCutoff = if( opts.has( "unkCutoff" ) ) opts.valueOf( "unkCutoff" ).toString.toInt else 1
 
     println( "dataPath: " + dataPath )

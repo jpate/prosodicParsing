@@ -671,7 +671,7 @@ case class PlainHMMPartialCounts(
       HashMap(
         initialStateCounts.keySet.map{ q =>
           q -> Maths.sumLogProb(
-            initialStateCounts(q), otherInitialStateCounts(q) //- otherStringLogProb
+            initialStateCounts(q), otherInitialStateCounts(q)
           )
         }.toSeq:_*
       ),
@@ -681,7 +681,7 @@ case class PlainHMMPartialCounts(
             transitionCounts(qFrom).keySet.map{ qTo =>
               qTo -> Maths.sumLogProb(
                   transitionCounts(qFrom)(qTo),
-                  otherTransitionCounts(qFrom)(qTo) //- otherStringLogProb
+                  otherTransitionCounts(qFrom)(qTo)
               )
             }.toSeq:_*
           )
@@ -693,7 +693,7 @@ case class PlainHMMPartialCounts(
             emissionCounts(q).keySet.map{ obs =>
               obs -> Maths.sumLogProb(
                 emissionCounts(q)(obs),
-                otherEmissionCounts(q)(obs) //- otherStringLogProb
+                otherEmissionCounts(q)(obs)
               )
             }.toSeq:_*
           )
@@ -1003,18 +1003,22 @@ case class CoupledHMFGPartialCounts(
     )
   }
 
-  def toParameters = CoupledHMMParameters(
+  def toParameters = CoupledHMFGParameters(
     initialStateCountsA,
     initialStateCountsB,
+    finalStateCountsA,
+    finalStateCountsB,
     transitionCountsA,
     transitionCountsB,
     emissionCountsA,
     emissionCountsB
   )
 
-  def toTransformedParameters(p: (Double => Double ) ) = CoupledHMMParameters(
+  def toTransformedParameters(p: (Double => Double ) ) = CoupledHMFGParameters(
     initialStateCountsA.map{ case( a, b ) => ( a, p(b) ) },
     initialStateCountsB.map{ case( a, b ) => ( a, p(b) ) },
+    finalStateCountsA.map{ case( a, b ) => ( a, p(b) ) },
+    finalStateCountsB.map{ case( a, b ) => ( a, p(b) ) },
     transitionCountsA.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
     transitionCountsB.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
     emissionCountsA.map{ case( a, b ) => ( a, b.map{ case( c, d ) => (c, p(d) ) } ) },
